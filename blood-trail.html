@@ -1,0 +1,299 @@
+<title>Blood Trail Finder</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Stencil+Display:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: one-column field tool — viewfinder up top, readout strip, thumb-reach controls, trail log. Deliberately dark-only for low light in the woods. */
+:root{
+  --bg:#12140f;        /* timber shadow */
+  --panel:#1b1e17;
+  --line:#2d3226;
+  --fg:#e9e4d6;        /* bone */
+  --muted:#9a9a86;
+  --blaze:#ff6a13;     /* blaze orange */
+  --hit:#3df5ff;       /* detection cyan — reads for red-green colorblind eyes */
+  --warn:#ffd23d;
+  --display:"Big Shoulders Stencil Display","Impact","Arial Narrow",sans-serif;
+  --body:"IBM Plex Sans",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,monospace;
+  color-scheme:dark;
+}
+html,body{background:var(--bg);color:var(--fg)}
+body{font-family:var(--body);font-size:15px;line-height:1.45;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px 28px}
+.wrap{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+header{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+h1{font-family:var(--display);font-weight:800;font-size:34px;letter-spacing:.02em;margin:0;line-height:1;text-transform:uppercase}
+h1 span{color:var(--blaze)}
+.src{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);padding:3px 7px;border-radius:3px;white-space:nowrap}
+.src.live{color:var(--hit);border-color:var(--hit)}
+.vf{position:relative;width:100%;max-width:100%;aspect-ratio:4/3;background:#000;border-radius:6px;overflow:hidden;border:1px solid var(--line)}
+.vf canvas{width:100%;height:100%;display:block;object-fit:cover}
+.vf .ret{position:absolute;inset:0;pointer-events:none;background:
+  linear-gradient(var(--blaze),var(--blaze)) left 10px top 10px/18px 2px no-repeat,
+  linear-gradient(var(--blaze),var(--blaze)) left 10px top 10px/2px 18px no-repeat,
+  linear-gradient(var(--blaze),var(--blaze)) right 10px top 10px/18px 2px no-repeat,
+  linear-gradient(var(--blaze),var(--blaze)) right 10px top 10px/2px 18px no-repeat,
+  linear-gradient(var(--blaze),var(--blaze)) left 10px bottom 10px/18px 2px no-repeat,
+  linear-gradient(var(--blaze),var(--blaze)) left 10px bottom 10px/2px 18px no-repeat,
+  linear-gradient(var(--blaze),var(--blaze)) right 10px bottom 10px/18px 2px no-repeat,
+  linear-gradient(var(--blaze),var(--blaze)) right 10px bottom 10px/2px 18px no-repeat}
+.vf .tag{position:absolute;left:12px;bottom:12px;font-family:var(--mono);font-size:11px;background:rgba(0,0,0,.6);color:var(--fg);padding:3px 7px;border-radius:3px}
+.vf .frz{position:absolute;right:12px;bottom:12px;font-family:var(--mono);font-size:11px;background:var(--warn);color:#000;padding:3px 7px;border-radius:3px}
+.readout{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.readout div{background:var(--panel);padding:9px 11px;min-width:0}
+.readout small{display:block;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.readout b{font-family:var(--mono);font-weight:500;font-size:18px;font-variant-numeric:tabular-nums}
+.verdict b{font-family:var(--display);font-size:22px;letter-spacing:.03em;text-transform:uppercase}
+.v-strong{color:var(--hit)} .v-maybe{color:var(--warn)} .v-none{color:var(--muted)}
+.row{display:flex;flex-wrap:wrap;gap:8px}
+.seg{display:flex;flex:1 1 auto;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{flex:1;background:var(--panel);color:var(--muted);border:0;padding:10px 6px;font:600 13px var(--body);cursor:pointer}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+label.lab{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:5px}
+.ctl{display:flex;flex-direction:column}
+input[type=range]{width:100%;accent-color:var(--blaze);height:28px}
+.btn{flex:1 1 auto;min-height:48px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font:600 15px var(--body);cursor:pointer;padding:0 14px}
+.btn.primary{background:var(--blaze);border-color:var(--blaze);color:#160800}
+.btn.mark{background:transparent;border-color:var(--hit);color:var(--hit)}
+.btn[disabled]{opacity:.4;cursor:default}
+.btn:focus-visible,.seg button:focus-visible,input:focus-visible{outline:2px solid var(--hit);outline-offset:2px}
+.note{font-size:13px;color:var(--muted);margin:0}
+.note.err{color:var(--warn)}
+h2{font-family:var(--display);font-size:22px;text-transform:uppercase;letter-spacing:.03em;margin:8px 0 0;display:flex;justify-content:space-between;align-items:center}
+h2 button{font:500 12px var(--body);background:none;border:0;color:var(--muted);text-decoration:underline;cursor:pointer}
+ol.log{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+ol.log li{display:grid;grid-template-columns:64px 1fr;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px}
+ol.log img{width:64px;height:48px;object-fit:cover;border-radius:3px;display:block}
+ol.log .m{font-family:var(--mono);font-size:12px;color:var(--muted)}
+ol.log .t{font-weight:600}
+.empty{font-size:13px;color:var(--muted);border:1px dashed var(--line);border-radius:6px;padding:14px;text-align:center}
+.confirm{display:flex;gap:8px;align-items:center;font-size:13px}
+details{border-top:1px solid var(--line);padding-top:10px}
+summary{cursor:pointer;font-weight:600}
+details ul{padding-left:18px;margin:8px 0 0;color:var(--muted);font-size:13.5px;display:flex;flex-direction:column;gap:6px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Blood <span>Trail</span></h1>
+    <span class="src" id="srcTag">Sample scene</span>
+  </header>
+
+  <div class="vf" id="vf">
+    <canvas id="out" width="640" height="480" aria-label="Viewfinder with blood highlighted in cyan"></canvas>
+    <div class="ret"></div>
+    <span class="tag" id="vfTag">Example — not your photo</span>
+    <span class="frz" id="frz" hidden>FROZEN · tap to resume</span>
+  </div>
+
+  <div class="readout" aria-live="polite">
+    <div class="verdict"><small>Reading</small><b id="verdict" class="v-none">—</b></div>
+    <div><small>Coverage</small><b id="cov">0.00%</b></div>
+    <div><small>Spots</small><b id="spots">0</b></div>
+  </div>
+
+  <div class="row">
+    <button class="btn primary" id="liveBtn">Start camera</button>
+    <button class="btn" id="photoBtn">Take photo</button>
+    <button class="btn" id="torchBtn" hidden>Light: off</button>
+    <input type="file" id="photoIn" accept="image/*" capture="environment" hidden>
+  </div>
+  <p class="note" id="msg" hidden></p>
+
+  <div class="ctl">
+    <label class="lab">Blood type</label>
+    <div class="seg" id="modeSeg" role="group" aria-label="Blood type">
+      <button data-v="fresh" aria-pressed="false">Fresh</button>
+      <button data-v="both" aria-pressed="true">Both</button>
+      <button data-v="dried" aria-pressed="false">Dried</button>
+    </div>
+  </div>
+  <div class="ctl">
+    <label class="lab">View</label>
+    <div class="seg" id="viewSeg" role="group" aria-label="View">
+      <button data-v="overlay" aria-pressed="true">Overlay</button>
+      <button data-v="isolate" aria-pressed="false">Isolate</button>
+      <button data-v="raw" aria-pressed="false">Raw</button>
+    </div>
+  </div>
+  <div class="ctl">
+    <label class="lab" for="sens">Sensitivity <span id="sensVal" style="font-family:var(--mono)">50</span></label>
+    <input type="range" id="sens" min="0" max="100" value="50">
+  </div>
+
+  <button class="btn mark" id="markBtn">Mark blood spot</button>
+
+  <section>
+    <h2>Trail log <button id="clearBtn">Clear</button></h2>
+    <div class="confirm" id="confirm" hidden>Clear every marked spot? <button class="btn" id="yesClear" style="min-height:36px">Clear</button><button class="btn" id="noClear" style="min-height:36px">Keep</button></div>
+    <ol class="log" id="log"></ol>
+    <div class="empty" id="empty">No spots marked yet. Point at sign and tap <b>Mark blood spot</b> to log it with a snapshot.</div>
+  </section>
+
+  <details>
+    <summary>Tracking tips</summary>
+    <ul>
+      <li>Cyan means the color matches blood. Red sumac, dogwood and maple leaves can also light up, so check what's highlighted.</li>
+      <li>Fresh, bright red with bubbles points to a lung hit. Dark red can mean liver. Green or brown flecks mean a gut shot, so back out and wait.</li>
+      <li>Use <b>Dried</b> for sign that's turned brown after a few hours, and raise sensitivity in low light.</li>
+      <li>Tap the viewfinder to freeze a frame and look closer.</li>
+      <li>Check the undersides of leaves and grass about knee to waist high.</li>
+    </ul>
+  </details>
+</div>
+
+<script>
+(function(){
+  const out=document.getElementById('out'), ctx=out.getContext('2d',{willReadFrequently:true});
+  const work=document.createElement('canvas'), wctx=work.getContext('2d',{willReadFrequently:true});
+  const $=id=>document.getElementById(id);
+  let mode='both', view='overlay', sens=0.5, source='sample', stream=null, video=null, raf=0, frozen=false, torch=false, lastResult=null;
+  const CELL=16;
+
+  function msg(t,err){const m=$('msg'); if(!t){m.hidden=true;return} m.hidden=false; m.textContent=t; m.className='note'+(err?' err':'')}
+
+  // ---------- sample scene ----------
+  function rnd(a,b){return a+Math.random()*(b-a)}
+  function sampleScene(){
+    work.width=640; work.height=480;
+    const g=wctx; g.fillStyle='hsl(28,30%,24%)'; g.fillRect(0,0,640,480);
+    for(let i=0;i<2200;i++){g.fillStyle=`hsl(${rnd(22,40)},${rnd(18,40)}%,${rnd(14,38)}%)`; g.beginPath(); g.ellipse(rnd(0,640),rnd(0,480),rnd(2,9),rnd(1,5),rnd(0,3),0,7); g.fill()}
+    for(let i=0;i<55;i++){g.fillStyle=`hsl(${rnd(30,48)},${rnd(40,65)}%,${rnd(30,52)}%)`; g.beginPath(); g.ellipse(rnd(0,640),rnd(0,480),rnd(14,30),rnd(7,13),rnd(0,3),0,7); g.fill()}
+    for(let i=0;i<30;i++){g.strokeStyle=`hsl(${rnd(60,90)},20%,${rnd(20,35)}%)`; g.lineWidth=rnd(1,2.5); g.beginPath(); const x=rnd(0,640),y=rnd(0,480); g.moveTo(x,y); g.lineTo(x+rnd(-40,40),y+rnd(-60,-10)); g.stroke()}
+    const drops=[[190,170,11],[250,215,7],[300,250,13],[360,300,6],[420,330,9]];
+    drops.forEach(([x,y,r])=>{g.fillStyle='hsl(355,85%,32%)'; g.beginPath(); g.arc(x,y,r,0,7); g.fill();
+      for(let k=0;k<6;k++){g.beginPath(); g.arc(x+rnd(-r*2.2,r*2.2),y+rnd(-r*2.2,r*2.2),rnd(1,2.6),0,7); g.fill()}
+      g.fillStyle='hsla(355,70%,55%,.7)'; g.beginPath(); g.arc(x-r*.3,y-r*.3,r*.25,0,7); g.fill()});
+    g.fillStyle='hsl(6,60%,17%)'; g.beginPath(); g.ellipse(500,140,24,8,.5,0,7); g.fill();
+    g.beginPath(); g.ellipse(120,360,16,6,-.4,0,7); g.fill();
+  }
+
+  // ---------- detection ----------
+  function classify(r,g,b){
+    const max=Math.max(r,g,b), min=Math.min(r,g,b), v=max/255;
+    if(max===0||max!==r) return 0;
+    const d=max-min, s=d/max; if(d===0) return 0;
+    let h=g>=b? 60*(g-b)/d : 360-60*(b-g)/d; // red is max
+    if(mode!=='dried'){
+      if((h>=345-8*sens||h<=10+8*sens) && s>0.58-0.22*sens && v>0.2-0.1*sens && r>g*1.7 && r>b*1.4) return 1;
+    }
+    if(mode!=='fresh'){
+      if((h>=350||h<=14+6*sens) && s>0.42-0.16*sens && v>0.05 && v<0.42+0.12*sens && r>g*1.7) return 2;
+    }
+    return 0;
+  }
+
+  function analyze(){
+    const W=work.width,H=work.height, img=wctx.getImageData(0,0,W,H), p=img.data;
+    const mask=new Uint8Array(W*H); let hits=0;
+    for(let i=0,j=0;i<p.length;i+=4,j++){const c=classify(p[i],p[i+1],p[i+2]); if(c){mask[j]=c;hits++}}
+    // cell grid
+    const cw=Math.ceil(W/CELL), ch=Math.ceil(H/CELL), cnt=new Uint16Array(cw*ch);
+    for(let y=0;y<H;y++)for(let x=0;x<W;x++) if(mask[y*W+x]) cnt[((y/CELL)|0)*cw+((x/CELL)|0)]++;
+    const thr=CELL*CELL*0.05, on=new Uint8Array(cw*ch); for(let k=0;k<on.length;k++) on[k]=cnt[k]>=thr?1:0;
+    // connected components
+    const seen=new Uint8Array(cw*ch), boxes=[];
+    for(let k=0;k<on.length;k++){ if(!on[k]||seen[k]) continue;
+      let q=[k], x0=1e9,y0=1e9,x1=-1,y1=-1,n=0; seen[k]=1;
+      while(q.length){const c=q.pop(), cx=c%cw, cy=(c/cw)|0; n++; x0=Math.min(x0,cx);y0=Math.min(y0,cy);x1=Math.max(x1,cx);y1=Math.max(y1,cy);
+        for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const nx=cx+dx,ny=cy+dy; if(nx<0||ny<0||nx>=cw||ny>=ch) continue; const nk=ny*cw+nx; if(on[nk]&&!seen[nk]){seen[nk]=1;q.push(nk)}}}
+      boxes.push({x:x0*CELL,y:y0*CELL,w:(x1-x0+1)*CELL,h:(y1-y0+1)*CELL,n});
+    }
+    // render
+    if(view!=='raw'){
+      for(let i=0,j=0;i<p.length;i+=4,j++){
+        if(mask[j]){ p[i]=61;p[i+1]=245;p[i+2]=255; }
+        else if(view==='isolate'){ const l=(p[i]*.3+p[i+1]*.59+p[i+2]*.11)*.45; p[i]=p[i+1]=p[i+2]=l; }
+        else { p[i]*=.7;p[i+1]*=.7;p[i+2]*=.7; }
+      }
+    }
+    out.width=W; out.height=H; ctx.putImageData(img,0,0);
+    if(view!=='raw'){ ctx.lineWidth=Math.max(2,W/320); ctx.strokeStyle='#3df5ff'; ctx.setLineDash([6,4]);
+      boxes.forEach(b=>{const pad=6; ctx.strokeRect(b.x-pad,b.y-pad,b.w+pad*2,b.h+pad*2)}); ctx.setLineDash([]); }
+    const cov=hits/(W*H)*100, big=boxes.filter(b=>b.n>=2).length;
+    let v='none'; if(big>=1||cov>0.3) v='strong'; else if(boxes.length) v='maybe';
+    lastResult={cov,spots:boxes.length,v};
+    $('cov').textContent=cov.toFixed(2)+'%'; $('spots').textContent=boxes.length;
+    const ve=$('verdict'); ve.textContent=v==='strong'?'Blood likely':v==='maybe'?'Possible':'Nothing'; ve.className='v-'+v;
+  }
+
+  function redraw(){ if(source==='sample') sampleScene(); else if(source==='photo') wctx.drawImage(photoImg,0,0,work.width,work.height); analyze(); }
+
+  // ---------- live camera ----------
+  function loop(){
+    if(!video||!stream) return;
+    if(!frozen && video.readyState>=2){
+      const vw=video.videoWidth, vh=video.videoHeight, W=480, H=Math.round(W*vh/vw)||360;
+      if(work.width!==W||work.height!==H){work.width=W;work.height=H}
+      wctx.drawImage(video,0,0,W,H); analyze();
+    }
+    raf=requestAnimationFrame(loop);
+  }
+  async function startLive(){
+    if(stream){stopLive();return}
+    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){msg('Live camera is not available here. Use Take photo instead.',true);return}
+    try{
+      stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280}},audio:false});
+    }catch(e){stream=null; msg('Live camera was blocked here. Tap Take photo to snap a picture with your camera, or open this page in your phone browser to use live mode.',true); return}
+    video=document.createElement('video'); video.playsInline=true; video.muted=true; video.srcObject=stream; await video.play().catch(()=>{});
+    source='live'; frozen=false; $('frz').hidden=true; msg('');
+    $('srcTag').textContent='Live'; $('srcTag').className='src live'; $('vfTag').textContent='Live camera · tap to freeze';
+    $('liveBtn').textContent='Stop camera';
+    const track=stream.getVideoTracks()[0], caps=track.getCapabilities?track.getCapabilities():{};
+    $('torchBtn').hidden=!caps.torch;
+    try{ navigator.wakeLock&&navigator.wakeLock.request('screen').catch(()=>{}) }catch(e){}
+    loop();
+  }
+  function stopLive(){
+    cancelAnimationFrame(raf); if(stream) stream.getTracks().forEach(t=>t.stop()); stream=null; video=null; torch=false;
+    $('torchBtn').hidden=true; $('torchBtn').textContent='Light: off'; $('liveBtn').textContent='Start camera';
+    $('srcTag').textContent='Paused'; $('srcTag').className='src'; $('vfTag').textContent='Last frame'; $('frz').hidden=true;
+    source='frame';
+  }
+  $('liveBtn').onclick=startLive;
+  $('torchBtn').onclick=async()=>{ if(!stream) return; torch=!torch;
+    try{ await stream.getVideoTracks()[0].applyConstraints({advanced:[{torch}]}); $('torchBtn').textContent='Light: '+(torch?'on':'off'); }
+    catch(e){ torch=false; msg('This phone would not turn on the light from the browser.',true) } };
+  $('vf').onclick=()=>{ if(source!=='live') return; frozen=!frozen; $('frz').hidden=!frozen; };
+
+  // ---------- photo ----------
+  const photoImg=new Image();
+  $('photoBtn').onclick=()=>$('photoIn').click();
+  $('photoIn').onchange=e=>{ const f=e.target.files&&e.target.files[0]; if(!f) return;
+    if(stream) stopLive();
+    const url=URL.createObjectURL(f);
+    photoImg.onload=()=>{ const W=Math.min(800,photoImg.naturalWidth), H=Math.round(W*photoImg.naturalHeight/photoImg.naturalWidth);
+      work.width=W; work.height=H; source='photo'; $('srcTag').textContent='Photo'; $('srcTag').className='src'; $('vfTag').textContent='Your photo'; msg(''); redraw(); URL.revokeObjectURL(url); };
+    photoImg.onerror=()=>msg('That file could not be opened as a picture. Try a JPG or PNG.',true);
+    photoImg.src=url; e.target.value=''; };
+
+  // ---------- controls ----------
+  function seg(id,cb){ const el=$(id); el.addEventListener('click',e=>{const b=e.target.closest('button'); if(!b) return;
+    el.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b)); cb(b.dataset.v); }); }
+  // the work canvas always holds the untouched frame, so settings just re-run detection on it
+  function refresh(){ if(source==='live'&&!frozen) return; analyze(); }
+  seg('modeSeg',v=>{mode=v;refresh()}); seg('viewSeg',v=>{view=v;refresh()});
+  $('sens').oninput=e=>{sens=e.target.value/100; $('sensVal').textContent=e.target.value; refresh()};
+
+  // ---------- trail log ----------
+  const KEY='bloodtrail.log.v1'; let log=[];
+  try{ log=JSON.parse(localStorage.getItem(KEY)||'[]') }catch(e){ log=[] }
+  function save(){ try{ localStorage.setItem(KEY,JSON.stringify(log.slice(0,40))) }catch(e){} }
+  function renderLog(){ const ol=$('log'); ol.innerHTML=''; $('empty').hidden=log.length>0;
+    log.forEach((s,i)=>{ const li=document.createElement('li'); const im=document.createElement('img'); im.src=s.thumb; im.alt='Snapshot of spot '+(log.length-i);
+      const d=document.createElement('div'); const t=document.createElement('div'); t.className='t'; t.textContent='Spot '+(log.length-i)+' · '+s.reading;
+      const m=document.createElement('div'); m.className='m'; m.textContent=new Date(s.t).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})+' · '+s.cov.toFixed(2)+'% · '+s.mode;
+      d.append(t,m); li.append(im,d); ol.append(li); }); }
+  $('markBtn').onclick=()=>{ if(!lastResult) return;
+    const c=document.createElement('canvas'); c.width=160; c.height=Math.round(160*out.height/out.width); c.getContext('2d').drawImage(out,0,0,c.width,c.height);
+    log.unshift({t:Date.now(),cov:lastResult.cov,mode,reading:$('verdict').textContent,thumb:c.toDataURL('image/jpeg',.7)}); save(); renderLog();
+    if(navigator.vibrate) try{navigator.vibrate(40)}catch(e){} };
+  $('clearBtn').onclick=()=>{ if(log.length) $('confirm').hidden=false };
+  $('noClear').onclick=()=>$('confirm').hidden=true;
+  $('yesClear').onclick=()=>{ log=[]; save(); renderLog(); $('confirm').hidden=true };
+
+  renderLog(); redraw();
+})();
+</script>
