@@ -20,7 +20,11 @@
   --mono:"IBM Plex Mono",ui-monospace,monospace;
   color-scheme:dark;
 }
+[hidden]{display:none!important}
 html,body{background:var(--bg);color:var(--fg)}
+body{margin:0}
+*,*::before,*::after{box-sizing:border-box}
+img{max-width:100%}
 body{font-family:var(--body);font-size:15px;line-height:1.45;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px 28px}
 .wrap{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
 section.tab{display:flex;flex-direction:column;gap:14px}
