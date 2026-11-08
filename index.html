@@ -1,0 +1,1242 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0e100b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Blood Trail Finder</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Stencil+Display:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{
+  --bg:#0e100b;
+  --panel:#181b14;
+  --card:#1e2219;
+  --line:#2d3226;
+  --fg:#eae5d8;
+  --muted:#8e8e7a;
+  --blaze:#ff6a13;
+  --hit:#3df5ff;
+  --warn:#ffd23d;
+  --bad:#ff4d4d;
+  --ok:#5ce66a;
+  --display:"Big Shoulders Stencil Display","Impact","Arial Narrow",sans-serif;
+  --body:"IBM Plex Sans",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,monospace;
+  --radius:12px;
+  --radius-sm:8px;
+  color-scheme:dark;
+}
+[hidden]{display:none!important}
+html,body{background:var(--bg);color:var(--fg)}
+body{margin:0}
+*,*::before,*::after{box-sizing:border-box}
+img{max-width:100%}
+
+body{font-family:var(--body);font-size:15px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-top:12px;
+  padding-bottom:calc(72px + env(safe-area-inset-bottom,12px));
+}
+.wrap{max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+section.tab{display:flex;flex-direction:column;gap:16px}
+
+/* ===== APP HEADER ===== */
+.app-head{display:flex;align-items:center;gap:12px;padding-bottom:4px}
+.app-logo{width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,var(--blaze),#cc4400);display:flex;align-items:center;justify-content:center}
+.app-logo svg{width:24px;height:24px;fill:white}
+.app-title{flex:1}
+.app-title h1{font-family:var(--display);font-weight:800;font-size:28px;letter-spacing:.02em;margin:0;line-height:1;text-transform:uppercase}
+.app-title h1 span{color:var(--blaze)}
+.app-title .sub{font-size:11px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase;font-family:var(--mono)}
+.src-badge{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);padding:4px 10px;border-radius:20px;white-space:nowrap}
+.src-badge.live{color:var(--hit);border-color:var(--hit);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+
+/* ===== BOTTOM TAB BAR ===== */
+.tab-bar{position:fixed;bottom:0;left:0;right:0;z-index:900;background:var(--panel);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(3,1fr);padding-bottom:env(safe-area-inset-bottom,8px)}
+.tab-bar a{display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 4px 6px;text-decoration:none;color:var(--muted);font:600 11px var(--body);letter-spacing:.02em;transition:color .15s}
+.tab-bar a svg{width:22px;height:22px;fill:currentColor;transition:fill .15s}
+.tab-bar a[aria-selected="true"]{color:var(--blaze)}
+.tab-bar a:active{transform:scale(.95)}
+
+/* ===== ONBOARDING OVERLAY ===== */
+.onboard{position:fixed;inset:0;z-index:1000;background:var(--bg);display:flex;flex-direction:column;justify-content:center;align-items:center;padding:32px 24px;text-align:center;gap:24px;overflow-y:auto}
+.onboard .ob-icon{width:80px;height:80px;border-radius:20px;background:linear-gradient(135deg,var(--blaze),#cc4400);display:flex;align-items:center;justify-content:center;margin:0 auto}
+.onboard .ob-icon svg{width:48px;height:48px;fill:white}
+.onboard h2{font-family:var(--display);font-size:32px;text-transform:uppercase;margin:0;letter-spacing:.03em}
+.onboard h2 span{color:var(--blaze)}
+.onboard p{color:var(--muted);max-width:340px;margin:0;font-size:15px}
+.onboard .ob-features{display:flex;flex-direction:column;gap:12px;max-width:340px;width:100%;text-align:left}
+.onboard .ob-feat{display:flex;gap:12px;align-items:flex-start}
+.onboard .ob-feat .ob-ic{flex:0 0 36px;height:36px;border-radius:8px;background:var(--card);border:1px solid var(--line);display:flex;align-items:center;justify-content:center}
+.onboard .ob-feat .ob-ic svg{width:18px;height:18px;fill:var(--blaze)}
+.onboard .ob-feat div{flex:1}
+.onboard .ob-feat strong{font-size:14px;display:block;margin-bottom:2px}
+.onboard .ob-feat small{font-size:12.5px;color:var(--muted)}
+.btn-start{width:100%;max-width:340px;min-height:52px;border-radius:var(--radius);border:0;background:var(--blaze);color:#160800;font:700 16px var(--body);cursor:pointer;letter-spacing:.02em}
+.btn-start:active{transform:scale(.97)}
+.onboard .ob-skip{background:none;border:0;color:var(--muted);font:500 13px var(--body);cursor:pointer;text-decoration:underline}
+
+/* ===== VIEWFINDER ===== */
+.vf{position:relative;width:100%;max-width:100%;aspect-ratio:4/3;background:#000;border-radius:var(--radius);overflow:hidden;border:1px solid var(--line)}
+.vf canvas{width:100%;height:100%;display:block;object-fit:cover}
+.vf .ret{position:absolute;inset:0;pointer-events:none;background:
+  linear-gradient(var(--blaze),var(--blaze)) left 10px top 10px/18px 2px no-repeat,
+  linear-gradient(var(--blaze),var(--blaze)) left 10px top 10px/2px 18px no-repeat,
+  linear-gradient(var(--blaze),var(--blaze)) right 10px top 10px/18px 2px no-repeat,
+  linear-gradient(var(--blaze),var(--blaze)) right 10px top 10px/2px 18px no-repeat,
+  linear-gradient(var(--blaze),var(--blaze)) left 10px bottom 10px/18px 2px no-repeat,
+  linear-gradient(var(--blaze),var(--blaze)) left 10px bottom 10px/2px 18px no-repeat,
+  linear-gradient(var(--blaze),var(--blaze)) right 10px bottom 10px/18px 2px no-repeat,
+  linear-gradient(var(--blaze),var(--blaze)) right 10px bottom 10px/2px 18px no-repeat}
+.vf .tag{position:absolute;left:12px;bottom:12px;font-family:var(--mono);font-size:11px;background:rgba(0,0,0,.65);color:var(--fg);padding:4px 8px;border-radius:6px;backdrop-filter:blur(4px)}
+.vf .frz{position:absolute;right:12px;bottom:12px;font-family:var(--mono);font-size:11px;background:var(--warn);color:#000;padding:4px 8px;border-radius:6px;font-weight:600}
+
+/* ===== RESULT READOUT ===== */
+.result-bar{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+.result-bar.two{grid-template-columns:1fr 1fr}
+.result-bar div{background:var(--card);padding:12px;text-align:center}
+.result-bar .lab{display:block;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;font-family:var(--mono)}
+.result-bar b{font-family:var(--mono);font-weight:500;font-size:18px;font-variant-numeric:tabular-nums}
+.result-bar .wide{grid-column:1/-1}
+.big{font-family:var(--display);font-size:22px;letter-spacing:.03em;text-transform:uppercase;line-height:1.1}
+.v-strong{color:var(--hit)} .v-maybe{color:var(--warn)} .v-none{color:var(--muted)} .v-bad{color:var(--bad)}
+
+/* ===== ACTION BUTTONS ===== */
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.actions.three{grid-template-columns:1fr 1fr 1fr}
+.btn{min-height:48px;border-radius:var(--radius-sm);border:1px solid var(--line);background:var(--card);color:var(--fg);font:600 14px var(--body);cursor:pointer;padding:0 14px;display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .1s}
+.btn:active{transform:scale(.97)}
+.btn svg{width:18px;height:18px;fill:currentColor;flex-shrink:0}
+.btn.sm{min-height:40px;font-size:13px}
+.btn.primary{background:var(--blaze);border-color:var(--blaze);color:#160800}
+.btn.primary svg{fill:#160800}
+.btn.mark{background:transparent;border:2px solid var(--hit);color:var(--hit)}
+.btn.mark svg{fill:var(--hit)}
+.btn.on{border-color:var(--hit);color:var(--hit)}
+.btn.on svg{fill:var(--hit)}
+.btn[disabled]{opacity:.35;cursor:default;transform:none}
+.btn:focus-visible,input:focus-visible,.tab-bar a:focus-visible{outline:2px solid var(--hit);outline-offset:2px}
+.btn.full{grid-column:1/-1}
+
+/* ===== INFO TIP ===== */
+.info-btn{background:none;border:0;color:var(--muted);cursor:pointer;padding:4px;display:inline-flex;align-items:center;vertical-align:middle;border-radius:50%}
+.info-btn svg{width:16px;height:16px;fill:currentColor}
+.info-btn:hover,.info-btn[aria-expanded="true"]{color:var(--hit)}
+.tip{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-sm);padding:12px 14px;font-size:13px;color:var(--muted);line-height:1.55;margin-top:8px}
+.tip b,.tip strong{color:var(--fg);font-weight:600}
+.tip ul,.tip ol{padding-left:18px;margin:6px 0 0;display:flex;flex-direction:column;gap:4px}
+
+/* ===== CARDS ===== */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;display:flex;flex-direction:column;gap:12px}
+.card h3{font-family:var(--display);font-size:19px;letter-spacing:.03em;text-transform:uppercase;margin:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.card h3 .right{margin-left:auto;display:flex;align-items:center;gap:6px}
+.chip{font:500 10px var(--mono);letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:4px;white-space:nowrap}
+.chip.warn{color:var(--warn);border:1px solid var(--warn)}
+.chip.muted{color:var(--muted);border:1px solid var(--line)}
+.chip.ok{color:var(--ok);border:1px solid var(--ok)}
+
+/* ===== SETTINGS SECTION ===== */
+.settings-group{border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+.setting{background:var(--card);padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.setting+.setting{border-top:1px solid var(--line)}
+.setting-head{display:flex;align-items:center;gap:8px}
+.setting-head svg{width:16px;height:16px;fill:var(--muted);flex-shrink:0}
+.setting-head .lab{flex:1;font:600 13px var(--body);letter-spacing:.02em;text-transform:uppercase;color:var(--fg);margin:0}
+.seg{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{flex:1;background:var(--panel);color:var(--muted);border:0;padding:9px 6px;font:600 12px var(--body);cursor:pointer;transition:background .15s,color .15s}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+.seg button:active{transform:scale(.97)}
+input[type=range]{width:100%;accent-color:var(--blaze);height:28px}
+input[type=date],input[type=number]{background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:var(--radius-sm);padding:10px 12px;font:500 15px var(--mono);min-height:44px;width:100%}
+
+/* ===== DATA GRIDS ===== */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.kv{display:flex;flex-direction:column;min-width:0;gap:2px}
+.kv .lab{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-family:var(--mono)}
+.kv b{font:500 17px var(--mono);font-variant-numeric:tabular-nums}
+.count{font:500 13px var(--mono);color:var(--warn)}
+
+/* ===== SESSION GATE ===== */
+.session-timer{position:absolute;top:12px;right:12px;background:rgba(14,16,11,.85);color:var(--hit);font:700 22px var(--mono);padding:4px 10px;border-radius:8px;border:2px solid var(--hit);z-index:10;pointer-events:none}
+.session-timer.warn{color:var(--bad);border-color:var(--bad);animation:pulse .5s ease-in-out infinite alternate}
+@keyframes pulse{0%{opacity:1}100%{opacity:.5}}
+.session-count{font:500 12px var(--mono);color:var(--muted);text-align:center;margin:4px 0 0}
+.session-count.out{color:var(--bad)}
+.upsell-overlay{position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:200;display:flex;align-items:center;justify-content:center;padding:24px}
+.upsell-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);max-width:340px;width:100%;padding:28px 24px;text-align:center}
+.upsell-card h2{font-family:var(--display);font-size:24px;text-transform:uppercase;letter-spacing:.04em;color:var(--blaze);margin:0 0 8px}
+.upsell-card p{color:var(--muted);font-size:14px;line-height:1.5;margin:0 0 20px}
+.upsell-card .price{font:700 32px var(--display);color:var(--fg);margin:0 0 4px}
+.upsell-card .price small{font-size:14px;color:var(--muted);font-family:var(--body);font-weight:400}
+.upsell-card .buy-btn{display:block;width:100%;background:var(--blaze);color:#fff;border:0;border-radius:var(--radius-sm);padding:14px;font:700 16px var(--body);cursor:pointer;margin:16px 0 10px}
+.upsell-card .buy-btn:active{transform:scale(.97);opacity:.9}
+.upsell-card .restore{background:none;border:0;color:var(--muted);font:500 13px var(--body);cursor:pointer;text-decoration:underline}
+.upsell-card .close-x{background:none;border:0;color:var(--muted);font-size:13px;cursor:pointer;margin-top:10px}
+.pro-badge{display:inline-block;background:var(--blaze);color:#fff;font:700 10px var(--mono);padding:2px 6px;border-radius:4px;letter-spacing:.08em;vertical-align:middle;margin-left:6px}
+.note{font-size:13px;color:var(--muted);margin:0;line-height:1.5}
+.note.err{color:var(--warn)}
+
+/* ===== TRAIL LOG ===== */
+h2.section{font-family:var(--display);font-size:20px;text-transform:uppercase;letter-spacing:.03em;margin:8px 0 0;display:flex;align-items:center;gap:8px}
+h2.section .right{margin-left:auto}
+h2.section button{font:500 12px var(--body);background:none;border:0;color:var(--muted);text-decoration:underline;cursor:pointer}
+ol.log{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+ol.log li{display:grid;grid-template-columns:64px 1fr;gap:12px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:var(--radius-sm);padding:8px}
+ol.log img{width:64px;height:48px;object-fit:cover;border-radius:6px;display:block}
+ol.log .m{font-family:var(--mono);font-size:11.5px;color:var(--muted);overflow-wrap:anywhere}
+ol.log .t{font-weight:600;font-size:14px}
+.empty{font-size:13px;color:var(--muted);border:1px dashed var(--line);border-radius:var(--radius);padding:20px 16px;text-align:center;line-height:1.6}
+.confirm{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px}
+
+/* ===== EXCLUDE COLORS ===== */
+.xchip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:2px 2px 2px 8px;font:500 12px var(--mono)}
+.xchip i{width:16px;height:16px;border-radius:50%;display:inline-block;border:1px solid var(--line)}
+.xchip button{background:none;border:0;color:var(--muted);font-size:18px;cursor:pointer;padding:0 8px;min-height:30px}
+
+/* ===== RUT CHART ===== */
+.chart{width:100%;height:auto;display:block}
+.chart .area{fill:var(--blaze);fill-opacity:.25;stroke:var(--blaze);stroke-width:2}
+.chart .grid{stroke:var(--line);stroke-width:1}
+.chart .today{stroke:var(--hit);stroke-width:2}
+.chart text{fill:var(--muted);font:500 10px var(--mono)}
+.chart .tl{fill:var(--hit)}
+
+/* ===== MAP ===== */
+.mapbox{position:relative;width:100%;max-width:100%;aspect-ratio:1/1;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:var(--panel)}
+.mapbox canvas{width:100%;height:100%;display:block}
+.mapbox .mapempty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;color:var(--muted);font-size:13.5px;line-height:1.5}
+.status{border-radius:var(--radius);padding:14px 16px;border:1px solid var(--line);background:var(--card)}
+.status.in{border-color:var(--hit)} .status.near{border-color:var(--warn)} .status.out{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,var(--card))}
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.row{display:flex;flex-wrap:wrap;gap:8px}
+a.btn{text-decoration:none}
+
+/* ===== LEAFLET INLINE ===== */
+.mapbox #lmap{position:absolute;inset:0}
+.leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
+.leaflet-container{overflow:hidden;touch-action:none;-webkit-tap-highlight-color:transparent;background:var(--panel);font:12px var(--body)}
+.leaflet-tile,.leaflet-marker-icon{user-select:none;-webkit-user-select:none;-webkit-user-drag:none}
+.leaflet-container img.leaflet-tile,.leaflet-container .leaflet-tile-pane img{max-width:none!important;max-height:none!important;width:auto;padding:0}
+.leaflet-tile{visibility:hidden}.leaflet-tile-loaded{visibility:inherit}
+.leaflet-pane{z-index:400}.leaflet-tile-pane{z-index:200}.leaflet-overlay-pane{z-index:400}.leaflet-marker-pane{z-index:600}.leaflet-tooltip-pane{z-index:650}.leaflet-popup-pane{z-index:700}.leaflet-map-pane canvas{z-index:100}.leaflet-map-pane svg{z-index:200}
+.leaflet-top,.leaflet-bottom{position:absolute;z-index:1000;pointer-events:none}
+.leaflet-top{top:0}.leaflet-right{right:0}.leaflet-bottom{bottom:0}.leaflet-left{left:0}
+.leaflet-control{position:relative;z-index:800;pointer-events:auto;float:left;clear:both}
+.leaflet-right .leaflet-control{float:right}
+.leaflet-top .leaflet-control{margin-top:10px}.leaflet-left .leaflet-control{margin-left:10px}
+.leaflet-zoom-animated{transform-origin:0 0}
+.leaflet-zoom-anim .leaflet-zoom-animated{transition:transform .25s cubic-bezier(0,0,.25,1)}
+.leaflet-zoom-anim .leaflet-tile,.leaflet-pan-anim .leaflet-tile{transition:none}
+.leaflet-zoom-anim .leaflet-zoom-hide{visibility:hidden}
+.leaflet-marker-icon,.leaflet-tile-container{pointer-events:none}
+.leaflet-bar{border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.leaflet-bar a{display:block;width:36px;height:36px;line-height:36px;text-align:center;text-decoration:none;background:var(--panel);color:var(--fg);font:600 18px var(--body)}
+.leaflet-bar a+a{border-top:1px solid var(--line)}
+.leaflet-container .leaflet-control-attribution{background:rgba(0,0,0,.6);color:#ccc;font-size:9.5px;padding:1px 5px;margin:0;line-height:1.4}
+.leaflet-container .leaflet-control-attribution a{color:#ddd}
+.leaflet-container .leaflet-control-scale{margin:0 0 22px 10px}
+.leaflet-control-scale-line{border:2px solid var(--fg);border-top:0;color:var(--fg);font:500 10px var(--mono);padding:0 4px;background:rgba(0,0,0,.5)}
+.leaflet-attribution-flag{display:none!important}
+.spot-ic{background:var(--hit);color:#001214;border-radius:50%;font:700 11px/18px var(--mono);text-align:center;border:2px solid #001214;box-sizing:border-box}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<!-- ===== ONBOARDING ===== -->
+<div class="onboard" id="onboard" hidden>
+  <div class="ob-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg></div>
+  <h2>Blood <span>Trail</span> Finder</h2>
+  <p>Your phone becomes a blood-tracking tool. Point your camera at the ground and let color analysis find what your eyes miss.</p>
+  <div class="ob-features">
+    <div class="ob-feat">
+      <div class="ob-ic"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg></div>
+      <div><strong>Scan for blood</strong><small>Camera highlights blood in cyan, even dried sign that has turned brown</small></div>
+    </div>
+    <div class="ob-feat">
+      <div class="ob-ic"><svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg></div>
+      <div><strong>Hunt day info</strong><small>Sunrise, sunset, twilight, moon phase and rut forecast</small></div>
+    </div>
+    <div class="ob-feat">
+      <div class="ob-ic"><svg viewBox="0 0 24 24"><path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/></svg></div>
+      <div><strong>Property lines</strong><small>Set your boundary, see where you are, and get warned near the edge</small></div>
+    </div>
+  </div>
+  <button class="btn-start" id="obGo">Get started</button>
+  <button class="ob-skip" id="obSkip">I've used this before</button>
+</div>
+
+<!-- ===== MAIN APP ===== -->
+<div class="wrap">
+
+  <div class="app-head">
+    <div class="app-logo"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg></div>
+    <div class="app-title">
+      <h1>Blood <span>Trail</span></h1>
+      <div class="sub">Deer tracking tool<span class="pro-badge" id="proBadge" hidden>PRO</span></div>
+    </div>
+    <span class="src-badge" id="srcTag">Demo</span>
+  </div>
+
+  <!-- ================= SCAN TAB ================= -->
+  <section class="tab" id="tab-scan">
+
+    <div class="vf" id="vf" style="position:relative">
+      <canvas id="out" width="640" height="480" aria-label="Viewfinder showing detected blood highlighted in cyan"></canvas>
+      <div class="ret"></div>
+      <span class="tag" id="vfTag">Demo scene — start your camera below</span>
+      <span class="frz" id="frz" hidden>FROZEN · tap to resume</span>
+      <span class="session-timer" id="sessionTimer" hidden></span>
+    </div>
+
+    <div class="result-bar" aria-live="polite">
+      <div><span class="lab">Reading</span><span class="big v-none" id="verdict">—</span></div>
+      <div><span class="lab">Coverage</span><b id="cov">0.00%</b></div>
+      <div><span class="lab">Spots</span><b id="spots">0</b></div>
+    </div>
+    <p class="note" id="filtNote" hidden></p>
+
+    <div class="actions">
+      <button class="btn primary" id="liveBtn"><svg viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>Start camera</button>
+      <button class="btn" id="photoBtn"><svg viewBox="0 0 24 24"><path d="M12 12m-3.2 0a3.2 3.2 0 1 0 6.4 0 3.2 3.2 0 1 0-6.4 0M9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9z"/></svg>Take photo</button>
+      <button class="btn" id="torchBtn" hidden><svg viewBox="0 0 24 24"><path d="M9 21c0 .5.4 1 1 1h4c.6 0 1-.5 1-1v-1H9v1zm3-19C8.1 2 5 5.1 5 9c0 2.4 1.2 4.5 3 5.7V17c0 .5.4 1 1 1h6c.6 0 1-.5 1-1v-2.3c1.8-1.3 3-3.4 3-5.7 0-3.9-3.1-7-7-7z"/></svg>Light: off</button>
+      <input type="file" id="photoIn" accept="image/*" capture="environment" hidden>
+    </div>
+    <p class="note" id="msg" hidden></p>
+    <div class="session-count" id="sessionCount"></div>
+
+    <button class="btn mark full" id="markBtn" style="width:100%"><svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>Mark blood spot</button>
+
+    <!-- Settings -->
+    <div class="settings-group">
+      <div class="setting">
+        <div class="setting-head">
+          <svg viewBox="0 0 24 24"><path d="M7 14c-1.66 0-3-1.34-3-3 0-1.31.84-2.41 2-2.83V2h2v6.17C9.16 8.59 10 9.69 10 11c0 1.66-1.34 3-3 3zm0-4c-.55 0-1 .45-1 1s.45 1 1 1 1-.45 1-1-.45-1-1-1zM17 8c-1.66 0-3 1.34-3 3 0 1.31.84 2.41 2 2.83V22h2v-8.17c1.16-.42 2-1.52 2-2.83 0-1.66-1.34-3-3-3zm0 4c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z"/></svg>
+          <span class="lab">Blood type</span>
+          <button class="info-btn" onclick="toggleTip(this)" aria-expanded="false" aria-label="What does this mean?"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg></button>
+        </div>
+        <div class="seg" id="modeSeg" role="group" aria-label="Blood type">
+          <button data-v="fresh" aria-pressed="false">Fresh</button>
+          <button data-v="both" aria-pressed="true">Both</button>
+          <button data-v="dried" aria-pressed="false">Dried</button>
+        </div>
+        <div class="tip" hidden><b>Fresh</b> looks for bright red blood — a recent hit. <b>Dried</b> picks up sign that has turned dark brown after a few hours. <b>Both</b> catches everything.</div>
+      </div>
+
+      <div class="setting">
+        <div class="setting-head">
+          <svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+          <span class="lab">View mode</span>
+          <button class="info-btn" onclick="toggleTip(this)" aria-expanded="false" aria-label="What does this mean?"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg></button>
+        </div>
+        <div class="seg" id="viewSeg" role="group" aria-label="View mode">
+          <button data-v="overlay" aria-pressed="true">Overlay</button>
+          <button data-v="isolate" aria-pressed="false">Isolate</button>
+          <button data-v="raw" aria-pressed="false">Raw</button>
+        </div>
+        <div class="tip" hidden><b>Overlay</b> highlights blood in cyan on top of your camera view. <b>Isolate</b> grays out everything except blood. <b>Raw</b> shows the unprocessed image so you can compare.</div>
+      </div>
+
+      <div class="setting">
+        <div class="setting-head">
+          <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+          <span class="lab">Sensitivity <span id="sensVal" style="font-family:var(--mono);color:var(--blaze)">50</span></span>
+        </div>
+        <input type="range" id="sens" min="0" max="100" value="50">
+        <p class="note">Raise this in low light or for faint sign. Lower it to reduce false hits.</p>
+      </div>
+
+      <div class="setting">
+        <div class="setting-head">
+          <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+          <span class="lab">Filter out look-alikes</span>
+          <button class="info-btn" onclick="toggleTip(this)" aria-expanded="false" aria-label="What does this mean?"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg></button>
+        </div>
+        <div class="seg" id="filtSeg" role="group" aria-label="Filter look-alikes">
+          <button data-v="leaf" aria-pressed="true">Leaves</button>
+          <button data-v="berry" aria-pressed="true">Berries</button>
+          <button data-v="orange" aria-pressed="true">Orange</button>
+        </div>
+        <div class="tip" hidden>The woods are full of red things that aren't blood. These filters use shape and color rules to ignore common false positives:
+          <ul>
+            <li><b>Leaves</b> — large, flat red patches like maple or sumac</li>
+            <li><b>Berries</b> — small round clusters of similar-sized dots</li>
+            <li><b>Orange</b> — bright orange tones like autumn foliage</li>
+          </ul>
+          Filtered items show with a <b style="color:var(--warn)">yellow dashed outline</b> so you can double-check.
+        </div>
+      </div>
+
+      <div class="setting">
+        <div class="setting-head">
+          <svg viewBox="0 0 24 24"><path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+          <span class="lab">Exclude a color</span>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn sm" id="exclBtn"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>Tap to pick</button>
+          <span class="note" style="flex:1 1 140px">Tap a cyan area you know isn't blood. That exact color gets ignored.</span>
+        </div>
+        <div class="row" id="exclList" hidden></div>
+      </div>
+    </div>
+
+    <!-- Trail log -->
+    <section>
+      <h2 class="section"><svg viewBox="0 0 24 24" style="width:20px;height:20px;fill:var(--hit)"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg> Trail log <span class="right"><button id="clearBtn">Clear</button></span></h2>
+      <div class="confirm" id="confirm" hidden>Clear every marked spot? <button class="btn sm" id="yesClear">Clear</button><button class="btn sm" id="noClear">Keep</button></div>
+      <ol class="log" id="log"></ol>
+      <div class="empty" id="empty">No spots marked yet. Point your camera at blood sign and tap <b>Mark blood spot</b> to log it with a snapshot and GPS location.</div>
+    </section>
+
+    <!-- Tips -->
+    <div class="card">
+      <h3><svg viewBox="0 0 24 24" style="width:18px;height:18px;fill:var(--warn)"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg> Tracking tips</h3>
+      <ul style="padding-left:18px;margin:0;color:var(--muted);font-size:13.5px;display:flex;flex-direction:column;gap:6px">
+        <li><b style="color:var(--hit)">Cyan highlights</b> mean the color matches blood. Red sumac, dogwood and maple leaves can also trigger it — check what's highlighted before you mark it.</li>
+        <li><b style="color:var(--fg)">Bright red with bubbles</b> → lung hit. <b style="color:var(--fg)">Dark red</b> → liver. <b style="color:var(--fg)">Green or brown flecks</b> → gut shot — back out and wait at least 6 hours.</li>
+        <li>Use <b style="color:var(--fg)">Dried mode</b> for sign that has turned brown. Raise sensitivity in low light.</li>
+        <li>Tap the viewfinder to <b style="color:var(--fg)">freeze</b> a frame and look closer.</li>
+        <li>Check the <b style="color:var(--fg)">undersides of leaves</b> and grass from knee to waist height.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ================= HUNT DAY TAB ================= -->
+  <section class="tab" id="tab-day" hidden>
+    <div class="row" style="align-items:end">
+      <div style="flex:1 1 180px;display:flex;flex-direction:column;gap:4px"><label class="lab" for="dayDate" style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-family:var(--mono)">Date</label><input type="date" id="dayDate"></div>
+      <button class="btn sm" id="todayBtn" style="min-height:44px">Today</button>
+    </div>
+
+    <div class="card">
+      <h3><svg viewBox="0 0 24 24" style="width:18px;height:18px;fill:var(--blaze)"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg> Your location <span class="right"><span class="chip muted" id="locChip" hidden>Demo</span><button class="info-btn" onclick="toggleTip(this)" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg></button></span></h3>
+      <div class="kv"><b id="locText">—</b><span class="note" id="locNote"></span></div>
+      <div class="actions">
+        <button class="btn sm" id="gpsLocBtn"><svg viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0013 3.06V1h-2v2.06A8.994 8.994 0 003.06 11H1v2h2.06A8.994 8.994 0 0011 20.94V23h2v-2.06A8.994 8.994 0 0020.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>Use GPS</button>
+        <button class="btn sm" id="editLocBtn"><svg viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>Enter manually</button>
+      </div>
+      <div id="locForm" hidden>
+        <div class="fields">
+          <div style="display:flex;flex-direction:column;gap:4px"><label class="lab" for="latIn" style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-family:var(--mono)">Latitude</label><input type="number" id="latIn" step="any" inputmode="decimal" placeholder="38.95"></div>
+          <div style="display:flex;flex-direction:column;gap:4px"><label class="lab" for="lonIn" style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-family:var(--mono)">Longitude</label><input type="number" id="lonIn" step="any" inputmode="decimal" placeholder="-92.33"></div>
+        </div>
+        <div class="row" style="margin-top:8px"><button class="btn sm primary" id="saveLocBtn">Save</button><button class="btn sm" id="cancelLocBtn">Cancel</button></div>
+      </div>
+      <p class="note err" id="locMsg" hidden></p>
+      <div class="tip" hidden>Your location is needed for accurate sunrise/sunset times. <b>Use GPS</b> grabs your phone's position automatically. Or long-press your spot in Google Maps to copy coordinates and enter them here. West longitudes are negative (e.g. -92.33).</div>
+    </div>
+
+    <div class="card">
+      <h3><svg viewBox="0 0 24 24" style="width:18px;height:18px;fill:var(--warn)"><path d="M6.76 4.84l-1.8-1.79-1.41 1.41 1.79 1.79 1.42-1.41zM4 10.5H1v2h3v-2zm9-9.95h-2V3.5h2V.55zm7.45 3.91l-1.41-1.41-1.79 1.79 1.41 1.41 1.79-1.79zm-3.21 13.7l1.79 1.8 1.41-1.41-1.8-1.79-1.4 1.4zM20 10.5v2h3v-2h-3zm-8-5c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm-1 16.95h2V19.5h-2v2.95zm-7.45-3.91l1.41 1.41 1.79-1.8-1.41-1.41-1.79 1.8z"/></svg> Sun &amp; light <span class="right"><span class="count" id="countdown"></span><button class="info-btn" onclick="toggleTip(this)" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg></button></span></h3>
+      <div class="grid2">
+        <div class="kv"><span class="lab">Sunrise</span><b id="sRise">—</b></div>
+        <div class="kv"><span class="lab">Sunset</span><b id="sSet">—</b></div>
+        <div class="kv"><span class="lab">First light</span><b id="cDawn">—</b></div>
+        <div class="kv"><span class="lab">Dark</span><b id="cDusk">—</b></div>
+        <div class="kv"><span class="lab">Daylight</span><b id="dayLen">—</b></div>
+        <div class="kv"><span class="lab">Moon</span><b id="moonTxt">—</b></div>
+      </div>
+      <div class="tip" hidden><b>Sunrise</b> and <b>sunset</b> are calculated from your GPS coordinates using the NOAA solar algorithm — accurate to within a minute. <b>First light</b> and <b>dark</b> are civil twilight (sun 6° below the horizon). All times use your phone's time zone. <b>Check your state's regulations</b> for legal shooting hours — these vary by state. Moon phase affects deer movement — a bright full moon often means more nighttime feeding and slower mornings.</div>
+    </div>
+
+    <div class="card">
+      <h3><svg viewBox="0 0 24 24" style="width:18px;height:18px;fill:var(--blaze)"><path d="M18.6 6.62c-1.44 0-2.8.56-3.77 1.53L12 10.66 10.48 12h.01L7.8 14.39c-.64.64-1.49.99-2.4.99-1.87 0-3.39-1.51-3.39-3.38S3.53 8.62 5.4 8.62c.91 0 1.76.35 2.44 1.03l1.13 1 1.51-1.34L9.22 8.2C8.2 7.18 6.84 6.62 5.4 6.62 2.42 6.62 0 9.04 0 12s2.42 5.38 5.4 5.38c1.44 0 2.8-.56 3.77-1.53l2.83-2.5.01.01L13.52 12h-.01l2.69-2.39c.64-.64 1.49-.99 2.4-.99 1.87 0 3.39 1.51 3.39 3.38s-1.52 3.38-3.39 3.38c-.9 0-1.76-.35-2.44-1.03l-1.14-1.01-1.51 1.34 1.27 1.12c1.02 1.01 2.37 1.57 3.82 1.57 2.98 0 5.4-2.41 5.4-5.38s-2.42-5.37-5.4-5.37z"/></svg> Rut forecast <span class="right"><span class="chip muted">Estimate</span><button class="info-btn" onclick="toggleTip(this)" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg></button></span></h3>
+      <div class="result-bar two">
+        <div><span class="lab">Phase</span><span class="big" id="rutPhase">—</span></div>
+        <div><span class="lab">Activity</span><b id="rutPct">—</b></div>
+        <div class="wide"><span class="lab">What deer are doing</span><span id="rutDesc" style="font-size:14px">—</span></div>
+      </div>
+      <svg class="chart" id="rutChart" viewBox="0 0 340 110" role="img" aria-label="Rut activity curve around peak breeding date"></svg>
+      <div class="row" style="align-items:end">
+        <div style="flex:1 1 180px;display:flex;flex-direction:column;gap:4px"><label class="lab" for="peakIn" style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-family:var(--mono)">Peak breeding date</label><input type="date" id="peakIn"></div>
+        <span class="note" id="peakNote" style="flex:1 1 160px"></span>
+      </div>
+      <div class="tip" hidden>This is a rough model, not a guarantee. It estimates deer activity around one peak breeding date. <b>Missouri</b> typically peaks around <b>Nov 15</b>. Southern states can run weeks different, so set your local peak date. The <b>activity chart</b> shows the rut curve — the vertical cyan line is your selected date. <b>Seeking</b> and <b>chasing</b> phases are usually the best time to hunt.</div>
+    </div>
+  </section>
+
+  <!-- ================= PROPERTY TAB ================= -->
+  <section class="tab" id="tab-property" hidden>
+    <div class="status" id="propStatus" aria-live="polite">
+      <div class="big v-none" id="propState">No boundary set</div>
+      <div class="note" id="propDetail">Walk your property lines or import a boundary file to get started.</div>
+    </div>
+
+    <div class="mapbox">
+      <canvas id="map" aria-label="Property boundary map"></canvas>
+      <div id="lmap" hidden aria-label="Live map with position, boundary and blood spots"></div>
+      <div class="mapempty" id="mapEmpty">Your boundary, your position, and every GPS-tagged blood spot will appear here once you set up a boundary or start tracking.</div>
+    </div>
+    <div class="seg" id="layerSeg" role="group" aria-label="Map type" hidden>
+      <button data-v="sat" aria-pressed="true">Satellite</button>
+      <button data-v="topo" aria-pressed="false">Topo</button>
+      <button data-v="street" aria-pressed="false">Street</button>
+      <button data-v="plain" aria-pressed="false">Plain</button>
+    </div>
+    <div class="actions three">
+      <button class="btn sm" id="centerBtn"><svg viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0013 3.06V1h-2v2.06A8.994 8.994 0 003.06 11H1v2h2.06A8.994 8.994 0 0011 20.94V23h2v-2.06A8.994 8.994 0 0020.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>Center</button>
+      <button class="btn sm" id="fitBtn"><svg viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M15 3l2.3 2.3-2.89 2.87 1.42 1.42L18.7 6.7 21 9V3h-6zM3 9l2.3-2.3 2.87 2.89 1.42-1.42L6.7 5.3 9 3H3v6zm6 12l-2.3-2.3 2.89-2.87-1.42-1.42L5.3 17.3 3 15v6h6zm12-6l-2.3 2.3-2.87-2.89-1.42 1.42 2.89 2.87L15 21h6v-6z"/></svg>Show all</button>
+      <a class="btn sm" id="gmapsLink" href="https://www.google.com/maps" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>Google Maps</a>
+    </div>
+    <p class="note err" id="mapNote" hidden></p>
+
+    <div class="result-bar">
+      <div><span class="lab">Acres</span><b id="pAcres">—</b></div>
+      <div><span class="lab">GPS spots</span><b id="pSpots">0</b></div>
+      <div><span class="lab">Trail</span><b id="pTrail">—</b></div>
+    </div>
+
+    <button class="btn on full" id="trackBtn" style="width:100%"><svg viewBox="0 0 24 24" style="width:18px;height:18px"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0013 3.06V1h-2v2.06A8.994 8.994 0 003.06 11H1v2h2.06A8.994 8.994 0 0011 20.94V23h2v-2.06A8.994 8.994 0 0020.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>Track my GPS: off</button>
+    <p class="note err" id="propMsg" hidden></p>
+
+    <div class="card">
+      <h3><svg viewBox="0 0 24 24" style="width:18px;height:18px;fill:var(--warn)"><path d="M21 3L3 10.53v.98l6.84 2.65L12.48 21h.98L21 3z"/></svg> Walk the line <span class="right"><button class="info-btn" onclick="toggleTip(this)" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg></button></span></h3>
+      <p class="note" id="walkNote">Stand on each corner pin of your property and drop a point. Three or more corners make a boundary.</p>
+      <div class="row">
+        <button class="btn sm" id="walkStart">Start new boundary</button>
+        <button class="btn sm" id="walkDrop" hidden>Drop corner here</button>
+        <button class="btn sm" id="walkUndo" hidden>Undo</button>
+        <button class="btn sm primary" id="walkDone" hidden>Finish</button>
+        <button class="btn sm" id="walkCancel" hidden>Cancel</button>
+      </div>
+      <div class="tip" hidden>Walk to each corner of your property with GPS on. At each corner, tap <b>Drop corner here</b> to record that point. After 3+ corners, tap <b>Finish</b> to close the boundary. Phone GPS is usually accurate to 5–15 yards under trees, so treat anything near the line as "on the line."</div>
+    </div>
+
+    <div class="card">
+      <h3><svg viewBox="0 0 24 24" style="width:18px;height:18px;fill:var(--muted)"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg> Import boundary <span class="right"><button class="info-btn" onclick="toggleTip(this)" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg></button></span></h3>
+      <p class="note">Load a KML, GPX or GeoJSON file of your property boundary.</p>
+      <div class="row">
+        <button class="btn sm" id="importBtn"><svg viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/></svg>Choose file</button>
+        <button class="btn sm" id="clearBound">Clear boundary</button>
+        <input type="file" id="importIn" accept=".kml,.gpx,.geojson,.json,application/vnd.google-earth.kml+xml,application/gpx+xml,application/geo+json,application/json" hidden>
+      </div>
+      <div class="confirm" id="confirmBound" hidden>Remove the saved boundary? <button class="btn sm" id="yesBound">Remove</button><button class="btn sm" id="noBound">Keep</button></div>
+      <div class="tip" hidden>
+        <b>How to get your property lines:</b>
+        <ol>
+          <li>Open <b>Google Earth</b> (web or desktop) and find your land</li>
+          <li>Use <b>Add path or polygon</b> and click around your lines — most county parcel viewers show the boundaries so you can trace them</li>
+          <li>Save as a <b>KML</b> file, then import it here</li>
+        </ol>
+        <b>Never cross onto a neighbor's land</b> to recover a deer without their permission.
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- ===== UPSELL MODAL ===== -->
+<div class="upsell-overlay" id="upsell" hidden>
+  <div class="upsell-card">
+    <h2>Unlock Unlimited</h2>
+    <p>You've used all 3 free camera sessions for today. Upgrade to <b>Blood Trail Pro</b> for unlimited camera access — no daily limits, no timers.</p>
+    <div class="price">$9.99 <small>/ year</small></div>
+    <button class="buy-btn" id="buyBtn">Subscribe to Pro</button>
+    <button class="restore" id="restoreBtn">Restore purchase</button>
+    <button class="close-x" id="upsellClose">Not now</button>
+  </div>
+</div>
+
+<!-- ===== BOTTOM TAB BAR ===== -->
+<nav class="tab-bar" role="tablist">
+  <a href="#scan" data-tab="scan" role="tab" aria-selected="true">
+    <svg viewBox="0 0 24 24"><path d="M9.5 6.5v3h-3v-3h3M11 5H5v6h6V5zm-1.5 9.5v3h-3v-3h3M11 13H5v6h6v-6zm6.5-6.5v3h-3v-3h3M19 5h-6v6h6V5zm-6 8h1.5v1.5H13V13zm1.5 1.5H16V16h-1.5v-1.5zM16 13h1.5v1.5H16V13zm-3 3h1.5v1.5H13V16zm1.5 1.5H16V19h-1.5v-1.5zM16 16h1.5v1.5H16V16zm1.5-1.5H19V16h-1.5v-1.5zm0 3H19V19h-1.5v-1.5zM22 7h-2V4h-3V2h5v5zm0 15v-5h-2v3h-3v2h5zM2 22h5v-2H4v-3H2v5zM2 2v5h2V4h3V2H2z"/></svg>
+    Scan
+  </a>
+  <a href="#day" data-tab="day" role="tab" aria-selected="false">
+    <svg viewBox="0 0 24 24"><path d="M6.76 4.84l-1.8-1.79-1.41 1.41 1.79 1.79 1.42-1.41zM4 10.5H1v2h3v-2zm9-9.95h-2V3.5h2V.55zm7.45 3.91l-1.41-1.41-1.79 1.79 1.41 1.41 1.79-1.79zm-3.21 13.7l1.79 1.8 1.41-1.41-1.8-1.79-1.4 1.4zM20 10.5v2h3v-2h-3zm-8-5c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm-1 16.95h2V19.5h-2v2.95zm-7.45-3.91l1.41 1.41 1.79-1.8-1.41-1.41-1.79 1.8z"/></svg>
+    Hunt day
+  </a>
+  <a href="#property" data-tab="property" role="tab" aria-selected="false">
+    <svg viewBox="0 0 24 24"><path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/></svg>
+    Property
+  </a>
+</nav>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js">
+  // Register service worker for offline support
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('service-worker.js').catch(()=>{});
+  }
+</script>
+<script>
+// Info tip toggle (global helper)
+function toggleTip(btn){
+  const tip=btn.closest('.card,.setting,h3').querySelector('.tip')||btn.parentElement.parentElement.querySelector('.tip');
+  if(!tip) return;
+  const show=tip.hidden; tip.hidden=!show; btn.setAttribute('aria-expanded',show);
+}
+
+(function(){
+  const $=id=>document.getElementById(id);
+  const DAY=864e5;
+  const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+  const fmtT=t=>t?t.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}):'—';
+  const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+  // ================= ONBOARDING =================
+  if(!store.get('bloodtrail.seen',false)){
+    $('onboard').hidden=false;
+  }
+  $('obGo').onclick=$('obSkip').onclick=()=>{store.set('bloodtrail.seen',true); $('onboard').hidden=true};
+
+  // ================= GPS =================
+  let lastPos=null;
+  function getPos(timeout){return new Promise((res,rej)=>{
+    if(!navigator.geolocation) return rej({code:9});
+    try{navigator.geolocation.getCurrentPosition(p=>{lastPos={lat:p.coords.latitude,lon:p.coords.longitude,acc:p.coords.accuracy,t:Date.now()};res(lastPos)},rej,{enableHighAccuracy:true,timeout:timeout||10000,maximumAge:5000})}catch(e){rej({code:9})}
+  })}
+  function gpsErr(e){ return e&&e.code===1 ? 'Location is blocked. Open the app from your GitHub link in Chrome or Safari and allow location when asked.'
+    : e&&e.code===3 ? 'GPS took too long. Step into the open and try again.'
+    : 'GPS is not available here. Open from your GitHub link in Chrome or Safari.'; }
+  function hav(a,b){const R=6371000,r=Math.PI/180,dLa=(b.lat-a.lat)*r,dLo=(b.lon-a.lon)*r;const h=Math.sin(dLa/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dLo/2)**2;return 2*R*Math.asin(Math.sqrt(h))}
+  const YD=1.09361;
+
+  // ================= TABS =================
+  const TABS=['scan','day','property'];
+  function showTab(t){ if(!TABS.includes(t)) t='scan';
+    TABS.forEach(n=>{ $('tab-'+n).hidden=n!==t;
+      document.querySelectorAll('[data-tab="'+n+'"]').forEach(a=>a.setAttribute('aria-selected',n===t)); });
+    if(t==='day') renderDay(); if(t==='property'){ renderProperty(); if(lmap) setTimeout(()=>lmap.invalidateSize(),0); } }
+  window.addEventListener('hashchange',()=>showTab(location.hash.slice(1)));
+  document.querySelectorAll('[data-tab]').forEach(a=>a.addEventListener('click',e=>{ e.preventDefault(); const t=a.dataset.tab; try{ if(location.hash!=='#'+t) location.hash=t; }catch(_){} showTab(t); }));
+
+  // ================= SCAN =================
+  const out=$('out'), ctx=out.getContext('2d',{willReadFrequently:true});
+  const work=document.createElement('canvas'), wctx=work.getContext('2d',{willReadFrequently:true});
+  const FILT=store.get('bloodtrail.filters',{leaf:true,berry:true,orange:true});
+  let excl=store.get('bloodtrail.excl',[]);
+  let mode='both', view='overlay', sens=0.5, source='sample', stream=null, video=null, raf=0, frozen=false, torch=false, lastResult=null;
+
+  // ================= SESSION GATE (free tier) =================
+  const SESSION_LIMIT=3, SESSION_SECS=10;
+  const SUB_PRODUCT_ID='bloodtrail_pro_annual';
+  let pro=store.get('bloodtrail.pro',false);
+  let proExpires=store.get('bloodtrail.pro_expires',0);
+  let digitalGoodsService=null;
+  let sessionTimer=null, sessionRemaining=0;
+
+  // Check if a stored subscription has expired
+  function checkProExpiry(){
+    if(pro && proExpires>0 && Date.now()>proExpires){
+      pro=false; store.set('bloodtrail.pro',false);
+      store.set('bloodtrail.pro_expires',0); proExpires=0;
+      $('proBadge').hidden=true;
+    }
+  }
+
+  // Initialize Digital Goods API (only works inside TWA on Android)
+  async function initBilling(){
+    try{
+      if('getDigitalGoodsService' in window){
+        digitalGoodsService=await window.getDigitalGoodsService('https://play.google.com/billing');
+        // Check for existing entitlements on startup
+        await checkEntitlements();
+      }
+    }catch(e){ /* Not in TWA or billing unavailable — fall through to web mode */ }
+  }
+
+  // Check if user has an active subscription via Play Billing
+  async function checkEntitlements(){
+    if(!digitalGoodsService) return;
+    try{
+      const existing=await digitalGoodsService.listPurchases();
+      for(const purchase of existing){
+        if(purchase.itemId===SUB_PRODUCT_ID){
+          activatePro(purchase);
+          return;
+        }
+      }
+      // No active subscription found — ensure pro is off
+      if(pro && proExpires>0){ pro=false; store.set('bloodtrail.pro',false); store.set('bloodtrail.pro_expires',0); proExpires=0; }
+    }catch(e){}
+  }
+
+  // Trigger Google Play subscription purchase
+  async function purchaseSubscription(){
+    if(!digitalGoodsService){
+      // Not in TWA — show a message
+      msg('Purchase is available in the Android app from the Google Play Store.',true);
+      return false;
+    }
+    try{
+      // Get the subscription details to show Google's payment sheet
+      const details=await digitalGoodsService.getDetails([SUB_PRODUCT_ID]);
+      if(!details||details.length===0){ msg('Subscription not available right now.',true); return false; }
+
+      // Use the Payment Request API to trigger Google Play's purchase flow
+      const request=new PaymentRequest(
+        [{supportedMethods:'https://play.google.com/billing', data:{sku:SUB_PRODUCT_ID}}],
+        {total:{label:'Blood Trail Pro (Annual)',amount:{currency:'USD',value:'9.99'}}}
+      );
+      const response=await request.show();
+      const {purchaseToken}=response.details;
+
+      // Acknowledge the purchase so Google doesn't refund it
+      await digitalGoodsService.acknowledge(purchaseToken,'repeating');
+      await response.complete('success');
+
+      // Activate pro — set expiry ~1 year out (Google manages actual renewal)
+      activatePro({itemId:SUB_PRODUCT_ID});
+      return true;
+    }catch(e){
+      if(e.name==='AbortError') return false; // User cancelled
+      msg('Purchase failed. Please try again.',true);
+      return false;
+    }
+  }
+
+  // Activate pro mode with optional expiry
+  function activatePro(purchase){
+    pro=true; store.set('bloodtrail.pro',true);
+    // Set local expiry as a fallback (~366 days); Google's billing is the real source of truth
+    const expiry=Date.now()+366*86400000;
+    proExpires=expiry; store.set('bloodtrail.pro_expires',expiry);
+    $('proBadge').hidden=false;
+    hideUpsell(); updateSessionCount(); updateTimerUI();
+    msg('Pro unlocked — unlimited camera access for 1 year.');
+  }
+
+  function todayKey(){ return 'bt.sessions.'+ymd(new Date()); }
+  function sessionsUsed(){ return parseInt(localStorage.getItem(todayKey())||'0',10); }
+  function bumpSession(){ try{ localStorage.setItem(todayKey(), String(sessionsUsed()+1)); }catch(e){} }
+  function canStart(){ checkProExpiry(); return pro || sessionsUsed() < SESSION_LIMIT; }
+  function updateTimerUI(){
+    let el=$('sessionTimer');
+    if(!el) return;
+    if(pro){ el.hidden=true; return; }
+    if(sessionRemaining>0){ el.hidden=false; el.textContent=sessionRemaining+'s'; el.className='session-timer'+(sessionRemaining<=3?' warn':''); }
+    else el.hidden=true;
+  }
+  function updateSessionCount(){
+    let el=$('sessionCount');
+    if(!el) return;
+    if(pro){ el.hidden=true; return; }
+    const used=sessionsUsed();
+    el.hidden=false; el.textContent=(SESSION_LIMIT-used)+' of '+SESSION_LIMIT+' free sessions left today';
+    el.className='session-count'+(used>=SESSION_LIMIT?' out':'');
+  }
+  function startSessionTimer(){
+    if(pro) return;
+    sessionRemaining=SESSION_SECS;
+    updateTimerUI();
+    sessionTimer=setInterval(()=>{
+      sessionRemaining--;
+      updateTimerUI();
+      if(sessionRemaining<=0){ clearInterval(sessionTimer); sessionTimer=null; stopLive(); updateSessionCount();
+        if(!canStart()) showUpsell(); }
+    },1000);
+  }
+  function clearSessionTimer(){ if(sessionTimer){clearInterval(sessionTimer);sessionTimer=null;} sessionRemaining=0; updateTimerUI(); }
+  function showUpsell(){ $('upsell').hidden=false; }
+  function hideUpsell(){ $('upsell').hidden=true; }
+  function unlockPro(){ activatePro({itemId:SUB_PRODUCT_ID}); }
+  const CELL=16;
+  function msg(t,err){const m=$('msg'); if(!t){m.hidden=true;return} m.hidden=false; m.textContent=t; m.className='note'+(err?' err':'')}
+
+  function rnd(a,b){return a+Math.random()*(b-a)}
+  function sampleScene(){
+    work.width=640; work.height=480;
+    const g=wctx; g.fillStyle='hsl(28,30%,24%)'; g.fillRect(0,0,640,480);
+    for(let i=0;i<2200;i++){g.fillStyle=`hsl(${rnd(22,40)},${rnd(18,40)}%,${rnd(14,38)}%)`; g.beginPath(); g.ellipse(rnd(0,640),rnd(0,480),rnd(2,9),rnd(1,5),rnd(0,3),0,7); g.fill()}
+    for(let i=0;i<55;i++){g.fillStyle=`hsl(${rnd(30,48)},${rnd(40,65)}%,${rnd(30,52)}%)`; g.beginPath(); g.ellipse(rnd(0,640),rnd(0,480),rnd(14,30),rnd(7,13),rnd(0,3),0,7); g.fill()}
+    for(let i=0;i<30;i++){g.strokeStyle=`hsl(${rnd(60,90)},20%,${rnd(20,35)}%)`; g.lineWidth=rnd(1,2.5); g.beginPath(); const x=rnd(0,640),y=rnd(0,480); g.moveTo(x,y); g.lineTo(x+rnd(-40,40),y+rnd(-60,-10)); g.stroke()}
+    [[190,170,11],[250,215,7],[300,250,13],[360,300,6],[420,330,9]].forEach(([x,y,r])=>{g.fillStyle='hsl(355,85%,32%)'; g.beginPath(); g.arc(x,y,r,0,7); g.fill();
+      for(let k=0;k<6;k++){g.beginPath(); g.arc(x+rnd(-r*2.2,r*2.2),y+rnd(-r*2.2,r*2.2),rnd(1,2.6),0,7); g.fill()}
+      g.fillStyle='hsla(355,70%,55%,.7)'; g.beginPath(); g.arc(x-r*.3,y-r*.3,r*.25,0,7); g.fill()});
+    g.save(); g.translate(530,385); g.rotate(-.4); g.fillStyle='hsl(356,72%,36%)'; g.beginPath();
+    for(let k=0;k<10;k++){const a=k/10*Math.PI*2, rr=k%2?40:60; g.lineTo(Math.cos(a)*rr,Math.sin(a)*rr*.9)} g.closePath(); g.fill(); g.restore();
+    [[95,95],[111,90],[103,108],[120,105],[88,111]].forEach(([x,y])=>{g.fillStyle='hsl(352,88%,40%)'; g.beginPath(); g.arc(x,y,7,0,7); g.fill(); g.fillStyle='hsla(0,0%,100%,.8)'; g.beginPath(); g.arc(x-2,y-2,1.6,0,7); g.fill();});
+    g.fillStyle='hsl(11,88%,50%)'; g.beginPath(); g.ellipse(565,95,34,15,.6,0,7); g.fill();
+    g.fillStyle='hsl(6,60%,17%)'; g.beginPath(); g.ellipse(500,140,24,8,.5,0,7); g.fill();
+    g.beginPath(); g.ellipse(120,360,16,6,-.4,0,7); g.fill();
+  }
+
+  function classify(r,g,b){
+    const max=Math.max(r,g,b), min=Math.min(r,g,b), v=max/255;
+    if(max===0||max!==r) return 0;
+    const d=max-min, s=d/max; if(d===0) return 0;
+    const h=g>=b? 60*(g-b)/d : 360-60*(b-g)/d;
+    if(mode!=='dried' && (h>=345-8*sens||h<=10+8*sens) && s>0.58-0.22*sens && v>0.2-0.1*sens && r>g*1.7 && r>b*1.4) return excl.length&&excluded(h,s,v)?0:1;
+    if(mode!=='fresh' && (h>=350||h<=14+6*sens) && s>0.42-0.16*sens && v>0.05 && v<0.42+0.12*sens && r>g*1.7) return excl.length&&excluded(h,s,v)?0:2;
+    return 0;
+  }
+
+  const DEG=Math.PI/180;
+  function hsv(r,g,b){const max=Math.max(r,g,b),min=Math.min(r,g,b),d=max-min;let h=0;if(d){if(max===r)h=((g-b)/d)%6;else if(max===g)h=(b-r)/d+2;else h=(r-g)/d+4;h*=60;if(h<0)h+=360}return [h,max?d/max:0,max/255]}
+  function excluded(h,s,v){ for(const e of excl){ let dh=Math.abs(h-e.h); if(dh>180) dh=360-dh; if(dh<8&&Math.abs(s-e.s)<.15&&Math.abs(v-e.v)<.15) return true; } return false; }
+
+  function analyze(){
+    const W=work.width,H=work.height,N=W*H, img=wctx.getImageData(0,0,W,H), p=img.data;
+    const mask=new Uint8Array(N);
+    for(let i=0,j=0;i<p.length;i+=4,j++) if(classify(p[i],p[i+1],p[i+2])) mask[j]=1;
+    const lab=new Int32Array(N), stack=new Int32Array(N), blobs=[];
+    for(let i=0;i<N;i++){ if(!mask[i]||lab[i]) continue;
+      const id=blobs.length+1; let sp=0; stack[sp++]=i; lab[i]=id;
+      let a=0,sx=0,sy=0,sxx=0,syy=0,sxy=0,x0=W,y0=H,x1=0,y1=0,hc=0,hs=0,ss=0,sv=0;
+      while(sp){ const k=stack[--sp], x=k%W, y=(k-x)/W; a++; sx+=x; sy+=y; sxx+=x*x; syy+=y*y; sxy+=x*y;
+        if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y;
+        const q=k*4, c=hsv(p[q],p[q+1],p[q+2]); hc+=Math.cos(c[0]*DEG); hs+=Math.sin(c[0]*DEG); ss+=c[1]; sv+=c[2];
+        for(let dy=-1;dy<=1;dy++){ const ny=y+dy; if(ny<0||ny>=H) continue;
+          for(let dx=-1;dx<=1;dx++){ const nx=x+dx; if(nx<0||nx>=W) continue; const nk=ny*W+nx; if(mask[nk]&&!lab[nk]){lab[nk]=id;stack[sp++]=nk} } } }
+      const mx=sx/a,my=sy/a,cxx=sxx/a-mx*mx+1/12,cyy=syy/a-my*my+1/12,cxy=sxy/a-mx*my,tr=cxx+cyy,det=cxx*cyy-cxy*cxy,disc=Math.sqrt(Math.max(0,tr*tr/4-det));
+      blobs.push({a,x0,y0,x1,y1,cx:mx,cy:my,fill:a/((x1-x0+1)*(y1-y0+1)),elong:Math.sqrt((tr/2+disc)/Math.max(1e-6,tr/2-disc)),hue:Math.atan2(hs,hc)/DEG,v:sv/a,why:null});
+    }
+    const leafA=N*0.012, berryMin=Math.max(12,N*0.00006);
+    for(const b of blobs){
+      if(b.a<3){b.why='noise';continue}
+      if(FILT.orange && b.hue>9 && b.v>0.5){b.why='orange';continue}
+      if(FILT.leaf && ((b.a>leafA && b.fill>0.4) || (b.a>N*0.004 && b.elong>3.5))){b.why='leaf';continue}
+    }
+    if(FILT.berry){
+      const round=blobs.filter(b=>!b.why && b.a>=berryMin && b.a<N*0.006 && b.elong<1.4 && b.fill>0.62);
+      for(const b of round){ const r=Math.sqrt(b.a/Math.PI); let n=0;
+        for(const o of round){ if(o===b) continue; const q=o.a/b.a; if(q<0.5||q>2) continue; if(Math.hypot(o.cx-b.cx,o.cy-b.cy)<r*5) n++; }
+        if(n>=2) b.berry=1; }
+      for(const b of round) if(b.berry) b.why='berry';
+      const ber=round.filter(b=>b.berry);
+      if(ber.length){ const mA=ber.reduce((s,b)=>s+b.a,0)/ber.length, mr=Math.sqrt(mA/Math.PI);
+        for(const b of blobs){ if(b.why||b.a<mA*0.5||b.a>mA*4.5||b.fill<0.45) continue;
+          if(ber.some(o=>Math.hypot(o.cx-b.cx,o.cy-b.cy)<mr*4.5)) b.why='berry'; } }
+    }
+    const keep=new Uint8Array(N); let hits=0;
+    for(let i=0;i<N;i++) if(lab[i] && !blobs[lab[i]-1].why){keep[i]=1;hits++}
+    const cw=Math.ceil(W/CELL), ch=Math.ceil(H/CELL), cnt=new Uint16Array(cw*ch);
+    for(let y=0;y<H;y++)for(let x=0;x<W;x++) if(keep[y*W+x]) cnt[((y/CELL)|0)*cw+((x/CELL)|0)]++;
+    const thr=CELL*CELL*0.05, on=new Uint8Array(cw*ch); for(let k=0;k<on.length;k++) on[k]=cnt[k]>=thr?1:0;
+    const seen=new Uint8Array(cw*ch), boxes=[];
+    for(let k=0;k<on.length;k++){ if(!on[k]||seen[k]) continue;
+      let q=[k], x0=1e9,y0=1e9,x1=-1,y1=-1,n=0; seen[k]=1;
+      while(q.length){const c=q.pop(), cx=c%cw, cy=(c/cw)|0; n++; x0=Math.min(x0,cx);y0=Math.min(y0,cy);x1=Math.max(x1,cx);y1=Math.max(y1,cy);
+        for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const nx=cx+dx,ny=cy+dy; if(nx<0||ny<0||nx>=cw||ny>=ch) continue; const nk=ny*cw+nx; if(on[nk]&&!seen[nk]){seen[nk]=1;q.push(nk)}}}
+      boxes.push({x:x0*CELL,y:y0*CELL,w:(x1-x0+1)*CELL,h:(y1-y0+1)*CELL,n});
+    }
+    if(view!=='raw'){
+      for(let i=0,j=0;i<p.length;i+=4,j++){
+        if(keep[j]){ p[i]=61;p[i+1]=245;p[i+2]=255; }
+        else if(view==='isolate'){ const l=(p[i]*.3+p[i+1]*.59+p[i+2]*.11)*.45; p[i]=p[i+1]=p[i+2]=l; }
+        else { p[i]*=.7;p[i+1]*=.7;p[i+2]*=.7; }
+      }
+    }
+    out.width=W; out.height=H; ctx.putImageData(img,0,0);
+    const ign={leaf:0,berry:0,orange:0};
+    if(view!=='raw'){
+      const lw=Math.max(2,W/320); ctx.lineWidth=lw; ctx.strokeStyle='#3df5ff'; ctx.setLineDash([6,4]);
+      boxes.forEach(b=>{const pad=6; ctx.strokeRect(b.x-pad,b.y-pad,b.w+pad*2,b.h+pad*2)});
+      ctx.strokeStyle='#ffd23d'; ctx.fillStyle='#ffd23d'; ctx.setLineDash([3,3]); ctx.font='600 '+Math.round(Math.max(11,W/42))+'px "IBM Plex Mono",monospace';
+      for(const b of blobs){ if(!b.why||b.why==='noise') continue; ign[b.why]++;
+        if(b.why==='berry'){ ctx.beginPath(); ctx.arc(b.cx,b.cy,Math.sqrt(b.a/Math.PI)+3,0,7); ctx.stroke(); }
+        else { ctx.strokeRect(b.x0-3,b.y0-3,b.x1-b.x0+7,b.y1-b.y0+7); ctx.fillText(b.why==='leaf'?'leaf?':'orange',b.x0,Math.max(12,b.y0-7)); } }
+      ctx.setLineDash([]);
+    } else { for(const b of blobs) if(b.why&&b.why!=='noise') ign[b.why]++; }
+    const parts=[]; if(ign.leaf) parts.push(ign.leaf+' leaf'+(ign.leaf>1?'-sized patches':'-sized patch')); if(ign.berry) parts.push(ign.berry+' berr'+(ign.berry>1?'ies':'y')); if(ign.orange) parts.push(ign.orange+' orange patch'+(ign.orange>1?'es':''));
+    $('filtNote').hidden=!parts.length; $('filtNote').textContent='Filtered out (yellow outlines): '+parts.join(' · ');
+    const cov=hits/N*100, big=boxes.filter(b=>b.n>=2).length;
+    let v='none'; if(big>=1||cov>0.3) v='strong'; else if(boxes.length) v='maybe';
+    lastResult={cov,spots:boxes.length,v};
+    $('cov').textContent=cov.toFixed(2)+'%'; $('spots').textContent=boxes.length;
+    const ve=$('verdict'); ve.textContent=v==='strong'?'Blood likely':v==='maybe'?'Possible':'Nothing'; ve.className='big v-'+v;
+  }
+
+  function loop(){
+    if(!video||!stream) return;
+    if(!frozen && video.readyState>=2){
+      const vw=video.videoWidth, vh=video.videoHeight, W=480, H=Math.round(W*vh/vw)||360;
+      if(work.width!==W||work.height!==H){work.width=W;work.height=H}
+      wctx.drawImage(video,0,0,W,H); analyze();
+    }
+    raf=requestAnimationFrame(loop);
+  }
+  async function startLive(){
+    if(stream){stopLive();return}
+    if(!canStart()){ showUpsell(); return; }
+    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){msg('Live camera not available here. Use Take photo instead, or open from your GitHub link.',true);return}
+    try{ stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280}},audio:false}); }
+    catch(e){stream=null; msg('Camera was blocked. Tap Take photo, or open from your GitHub link and allow camera access.',true); return}
+    video=document.createElement('video'); video.playsInline=true; video.muted=true; video.srcObject=stream; await video.play().catch(()=>{});
+    source='live'; frozen=false; $('frz').hidden=true; msg('');
+    $('srcTag').textContent='Live'; $('srcTag').className='src-badge live'; $('vfTag').textContent='Live — tap to freeze';
+    $('liveBtn').innerHTML='<svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>Stop camera';
+    if(!pro){ bumpSession(); updateSessionCount(); startSessionTimer(); }
+    const track=stream.getVideoTracks()[0], caps=track.getCapabilities?track.getCapabilities():{};
+    $('torchBtn').hidden=!caps.torch;
+    try{ navigator.wakeLock&&navigator.wakeLock.request('screen').catch(()=>{}) }catch(e){}
+    loop();
+  }
+  function stopLive(){
+    clearSessionTimer();
+    cancelAnimationFrame(raf); if(stream) stream.getTracks().forEach(t=>t.stop()); stream=null; video=null; torch=false;
+    $('torchBtn').hidden=true; $('torchBtn').innerHTML='<svg viewBox="0 0 24 24"><path d="M9 21c0 .5.4 1 1 1h4c.6 0 1-.5 1-1v-1H9v1zm3-19C8.1 2 5 5.1 5 9c0 2.4 1.2 4.5 3 5.7V17c0 .5.4 1 1 1h6c.6 0 1-.5 1-1v-2.3c1.8-1.3 3-3.4 3-5.7 0-3.9-3.1-7-7-7z"/></svg>Light: off';
+    $('liveBtn').innerHTML='<svg viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>Start camera';
+    $('srcTag').textContent='Paused'; $('srcTag').className='src-badge'; $('vfTag').textContent='Last frame'; $('frz').hidden=true;
+    source='frame';
+  }
+  $('liveBtn').onclick=startLive;
+  $('torchBtn').onclick=async()=>{ if(!stream) return; torch=!torch;
+    try{ await stream.getVideoTracks()[0].applyConstraints({advanced:[{torch}]}); $('torchBtn').innerHTML='<svg viewBox="0 0 24 24"><path d="M9 21c0 .5.4 1 1 1h4c.6 0 1-.5 1-1v-1H9v1zm3-19C8.1 2 5 5.1 5 9c0 2.4 1.2 4.5 3 5.7V17c0 .5.4 1 1 1h6c.6 0 1-.5 1-1v-2.3c1.8-1.3 3-3.4 3-5.7 0-3.9-3.1-7-7-7z"/></svg>Light: '+(torch?'on':'off'); }
+    catch(e){ torch=false; msg('Could not turn on the flashlight from the browser.',true) } };
+  $('vf').onclick=ev=>{ if(armEx){ sampleAt(ev); return; } if(source!=='live') return; frozen=!frozen; $('frz').hidden=!frozen; };
+
+  // filters
+  $('filtSeg').querySelectorAll('button').forEach(b=>{ b.setAttribute('aria-pressed',!!FILT[b.dataset.v]);
+    b.onclick=()=>{ FILT[b.dataset.v]=!FILT[b.dataset.v]; b.setAttribute('aria-pressed',FILT[b.dataset.v]); store.set('bloodtrail.filters',FILT); refresh(); }; });
+  let armEx=false;
+  function vfLabel(){ return source==='live'?'Live — tap to freeze':source==='photo'?'Your photo':source==='sample'?'Demo scene — start your camera below':'Last frame'; }
+  function setArm(on){ armEx=on; $('exclBtn').textContent=on?'Cancel picking':'Tap to pick'; $('exclBtn').classList.toggle('on',on);
+    if(on){ if(source==='live'){frozen=true;$('frz').hidden=false} $('vfTag').textContent='Tap a cyan area that is NOT blood'; } else $('vfTag').textContent=vfLabel(); }
+  $('exclBtn').onclick=()=>setArm(!armEx);
+  function renderExcl(){ const el=$('exclList'); el.innerHTML=''; el.hidden=!excl.length;
+    excl.forEach((e,i)=>{ const c=document.createElement('span'); c.className='xchip'; const sw=document.createElement('i'); sw.style.background='rgb('+e.r+','+e.g+','+e.b+')';
+      const t=document.createElement('span'); t.textContent='Color '+(i+1); const x=document.createElement('button'); x.textContent='×'; x.setAttribute('aria-label','Stop ignoring color '+(i+1));
+      x.onclick=()=>{ excl.splice(i,1); store.set('bloodtrail.excl',excl); renderExcl(); refresh(); }; c.append(sw,t,x); el.append(c); }); }
+  function sampleAt(ev){
+    const r=out.getBoundingClientRect(), W=work.width, H=work.height, sc=Math.max(r.width/W,r.height/H);
+    const x=Math.round((ev.clientX-r.left-(r.width-W*sc)/2)/sc), y=Math.round((ev.clientY-r.top-(r.height-H*sc)/2)/sc);
+    if(x<0||y<0||x>=W||y>=H) return;
+    const x0=Math.max(0,x-3), y0=Math.max(0,y-3), d=wctx.getImageData(x0,y0,Math.min(7,W-x0),Math.min(7,H-y0)).data;
+    let n=0,R=0,G=0,B=0; for(let i=0;i<d.length;i+=4){ if(classify(d[i],d[i+1],d[i+2])){R+=d[i];G+=d[i+1];B+=d[i+2];n++} }
+    if(!n){ msg('Nothing flagged there. Tap directly on a cyan or yellow-outlined area.',true); return; }
+    R=Math.round(R/n);G=Math.round(G/n);B=Math.round(B/n); const c=hsv(R,G,B);
+    excl.push({h:c[0],s:c[1],v:c[2],r:R,g:G,b:B}); if(excl.length>8) excl.shift(); store.set('bloodtrail.excl',excl);
+    msg('Color excluded. Only do this for things you know are NOT blood.'); renderExcl(); setArm(false); analyze(); }
+
+  const photoImg=new Image();
+  $('photoBtn').onclick=()=>{ if(!canStart()){ showUpsell(); return; } $('photoIn').click(); };
+  $('photoIn').onchange=e=>{ const f=e.target.files&&e.target.files[0]; if(!f) return;
+    if(stream) stopLive();
+    if(!pro){ bumpSession(); updateSessionCount(); }
+    const url=URL.createObjectURL(f);
+    photoImg.onload=()=>{ const W=Math.min(800,photoImg.naturalWidth), H=Math.round(W*photoImg.naturalHeight/photoImg.naturalWidth);
+      work.width=W; work.height=H; wctx.drawImage(photoImg,0,0,W,H); source='photo';
+      $('srcTag').textContent='Photo'; $('srcTag').className='src-badge'; $('vfTag').textContent='Your photo'; msg(''); analyze(); URL.revokeObjectURL(url); };
+    photoImg.onerror=()=>msg('Could not open that file. Try a JPG or PNG photo.',true);
+    photoImg.src=url; e.target.value=''; };
+
+  function seg(id,cb){ const el=$(id); el.addEventListener('click',e=>{const b=e.target.closest('button'); if(!b) return;
+    el.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b)); cb(b.dataset.v); }); }
+  function refresh(){ if(source==='live'&&!frozen) return; analyze(); }
+  seg('modeSeg',v=>{mode=v;refresh()}); seg('viewSeg',v=>{view=v;refresh()});
+  $('sens').oninput=e=>{sens=e.target.value/100; $('sensVal').textContent=e.target.value; refresh()};
+
+  // trail log
+  const KEY='bloodtrail.log.v1'; let log=store.get(KEY,[]);
+  function saveLog(){ store.set(KEY,log.slice(0,40)) }
+  function renderLog(){ const ol=$('log'); ol.innerHTML=''; $('empty').hidden=log.length>0;
+    log.forEach((s,i)=>{ const li=document.createElement('li'); const im=document.createElement('img'); im.src=s.thumb; im.alt='Spot '+(log.length-i);
+      const d=document.createElement('div'); const t=document.createElement('div'); t.className='t'; t.textContent='Spot '+(log.length-i)+' · '+s.reading;
+      const m=document.createElement('div'); m.className='m';
+      m.textContent=new Date(s.t).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})+' · '+s.cov.toFixed(2)+'% · '+s.mode+(s.lat!=null?' · '+s.lat.toFixed(5)+', '+s.lon.toFixed(5):' · no GPS');
+      d.append(t,m); li.append(im,d); ol.append(li); }); }
+  $('markBtn').onclick=()=>{ if(!lastResult) return;
+    const c=document.createElement('canvas'); c.width=160; c.height=Math.round(160*out.height/out.width); c.getContext('2d').drawImage(out,0,0,c.width,c.height);
+    const entry={t:Date.now(),cov:lastResult.cov,mode,reading:$('verdict').textContent,thumb:c.toDataURL('image/jpeg',.7)};
+    if(lastPos&&Date.now()-lastPos.t<20000){entry.lat=lastPos.lat;entry.lon=lastPos.lon}
+    log.unshift(entry); saveLog(); renderLog();
+    if(navigator.vibrate) try{navigator.vibrate(40)}catch(e){}
+    if(entry.lat==null) getPos(6000).then(p=>{entry.lat=p.lat;entry.lon=p.lon;saveLog();renderLog()}).catch(()=>{});
+  };
+  $('clearBtn').onclick=()=>{ if(log.length) $('confirm').hidden=false };
+  $('noClear').onclick=()=>$('confirm').hidden=true;
+  $('yesClear').onclick=()=>{ log=[]; saveLog(); renderLog(); $('confirm').hidden=true };
+
+  // ================= HUNT DAY =================
+  const RAD=Math.PI/180, J1970=2440588, J2000=2451545, J0=0.0009, OBL=RAD*23.4397;
+  const toDays=d=>d.valueOf()/DAY-0.5+J1970-J2000, fromJ=j=>new Date((j+0.5-J1970)*DAY);
+  function sunTimes(date,lat,lon){
+    const lw=RAD*-lon, phi=RAD*lat, d=toDays(date);
+    const n=Math.round(d-J0-lw/(2*Math.PI)), ds=J0+lw/(2*Math.PI)+n;
+    const M=RAD*(357.5291+0.98560028*ds);
+    const C=RAD*(1.9148*Math.sin(M)+0.02*Math.sin(2*M)+0.0003*Math.sin(3*M));
+    const L=M+C+RAD*102.9372+Math.PI, dec=Math.asin(Math.sin(OBL)*Math.sin(L));
+    const transit=a=>J2000+a+0.0053*Math.sin(M)-0.0069*Math.sin(2*L);
+    const noonJ=transit(ds);
+    function at(h){ const cw=(Math.sin(h*RAD)-Math.sin(phi)*Math.sin(dec))/(Math.cos(phi)*Math.cos(dec)); if(cw<-1||cw>1) return null;
+      const setJ=transit(J0+(Math.acos(cw)+lw)/(2*Math.PI)+n); return {rise:fromJ(noonJ-(setJ-noonJ)),set:fromJ(setJ)}; }
+    return {sun:at(-0.833), civil:at(-6)};
+  }
+  function moon(date){ const syn=29.530588853; let age=((date-Date.UTC(2000,0,6,18,14))/DAY)%syn; if(age<0) age+=syn;
+    const names=['New moon','Waxing crescent','First quarter','Waxing gibbous','Full moon','Waning gibbous','Last quarter','Waning crescent'];
+    return {illum:(1-Math.cos(2*Math.PI*age/syn))/2, name:names[Math.floor(age/syn*8+0.5)%8]}; }
+
+  const EXAMPLE={lat:38.95,lon:-92.33,example:true};
+  let loc=store.get('bloodtrail.loc',EXAMPLE);
+  const ymd=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  const parseD=v=>{const [y,m,d]=v.split('-').map(Number); return new Date(y,m-1,d,12)};
+  $('dayDate').value=ymd(new Date());
+  $('dayDate').onchange=renderDay;
+  $('todayBtn').onclick=()=>{$('dayDate').value=ymd(new Date()); renderDay()};
+
+  function locMsg(t){const m=$('locMsg'); m.hidden=!t; m.textContent=t||''}
+  $('gpsLocBtn').onclick=()=>{ locMsg(''); $('gpsLocBtn').textContent='Finding…';
+    getPos(12000).then(p=>{ loc={lat:+p.lat.toFixed(5),lon:+p.lon.toFixed(5)}; store.set('bloodtrail.loc',loc); renderDay(); })
+    .catch(e=>locMsg(gpsErr(e))).finally(()=>$('gpsLocBtn').innerHTML='<svg viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0013 3.06V1h-2v2.06A8.994 8.994 0 003.06 11H1v2h2.06A8.994 8.994 0 0011 20.94V23h2v-2.06A8.994 8.994 0 0020.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>Use GPS'); };
+  $('editLocBtn').onclick=()=>{ $('locForm').hidden=false; $('latIn').value=loc.example?'':loc.lat; $('lonIn').value=loc.example?'':loc.lon; $('latIn').focus(); };
+  $('cancelLocBtn').onclick=()=>{ $('locForm').hidden=true; locMsg(''); };
+  $('saveLocBtn').onclick=()=>{ const la=parseFloat($('latIn').value), lo=parseFloat($('lonIn').value);
+    if(!(la>=-90&&la<=90)||!(lo>=-180&&lo<=180)){ locMsg('Latitude must be -90 to 90, longitude -90 to 180. Example: 38.95, -92.33.'); return; }
+    loc={lat:la,lon:lo}; store.set('bloodtrail.loc',loc); $('locForm').hidden=true; locMsg(''); renderDay(); };
+
+  // rut
+  let peakMD=store.get('bloodtrail.peak',{m:10,d:15});
+  function peakFor(date){ let p=new Date(date.getFullYear(),peakMD.m,peakMD.d,12); if((date-p)/DAY<-150) p=new Date(date.getFullYear()-1,peakMD.m,peakMD.d,12); return p; }
+  const rutIdx=o=>Math.min(1,Math.exp(-((o+3)**2)/(2*64))+0.35*Math.exp(-((o-28)**2)/(2*20)));
+  function phase(o){
+    if(o<-45) return ['Off season','Bucks are in bachelor groups or on summer patterns. Focus on food sources and trail cameras.'];
+    if(o<-30) return ['Pre-rut','Rubs and scrapes are showing up. Bucks still follow food-to-bed patterns but are getting restless.'];
+    if(o<-14) return ['Seeking','Bucks are cruising and checking scrapes, more often in daylight. Good time to rattle, grunt, and use scent.'];
+    if(o<-3)  return ['Chasing','Bucks are chasing does hard. Expect movement at any hour. Sit all day if you can.'];
+    if(o<=7)  return ['Peak breeding','Bucks lock down with does. Sightings may drop, but cruising bucks looking for the next doe still move.'];
+    if(o<=20) return ['Post-rut','Bucks are worn out and refueling. Hunt food sources, especially on cold days.'];
+    if(o<=35) return ['Second rut','Unbred does and some fawns come into estrus. A short bump in chasing activity.'];
+    return ['Late season','Deer are focused on food and cover to survive winter. Hunt food sources near thick bedding.'];
+  }
+  function rutChart(date,peak){
+    const svg=$('rutChart'), W=340,H=110,top=10,bot=88,X=o=>14+(o+40)/80*(W-28),Y=v=>bot-v*(bot-top);
+    let d='M'+X(-40)+','+bot; for(let o=-40;o<=40;o++) d+=' L'+X(o).toFixed(1)+','+Y(rutIdx(o)).toFixed(1); d+=' L'+X(40)+','+bot+' Z';
+    const lab=o=>{const t=new Date(peak.getTime()+o*DAY); return t.toLocaleDateString([], {month:'short',day:'numeric'})};
+    let s=`<line class="grid" x1="14" y1="${bot}" x2="${W-14}" y2="${bot}"/>`;
+    [-30,0,30].forEach(o=>{s+=`<line class="grid" x1="${X(o)}" y1="${top}" x2="${X(o)}" y2="${bot}"/><text x="${X(o)}" y="${H-6}" text-anchor="middle">${lab(o)}</text>`});
+    s+=`<path class="area" d="${d}"/>`;
+    const off=Math.round((date-peak)/DAY);
+    if(off>=-40&&off<=40){ const x=X(off).toFixed(1); s+=`<line class="today" x1="${x}" y1="${top-4}" x2="${x}" y2="${bot}"/><text class="tl" x="${x}" y="${top+2}" text-anchor="${off>25?'end':off<-25?'start':'middle'}" dx="${off>25?-4:off<-25?4:0}">${lab(off)}</text>`; }
+    svg.innerHTML=s;
+  }
+  $('peakIn').onchange=()=>{ const v=$('peakIn').value; if(!v) return; const d=parseD(v); peakMD={m:d.getMonth(),d:d.getDate()}; store.set('bloodtrail.peak',peakMD); renderDay(); };
+
+  function hm(ms){ const m=Math.round(ms/6e4); return Math.floor(m/60)+' h '+String(m%60).padStart(2,'0')+' m' }
+  function renderDay(){
+    const date=parseD($('dayDate').value||ymd(new Date()));
+    $('locText').textContent=loc.lat.toFixed(4)+', '+loc.lon.toFixed(4);
+    $('locChip').hidden=!loc.example;
+    $('locNote').textContent=loc.example?'Demo location (central Missouri). Set your own for accurate times.':'Saved on this phone.';
+    const st=sunTimes(date,loc.lat,loc.lon), s=st.sun, c=st.civil;
+    $('sRise').textContent=s?fmtT(s.rise):'—'; $('sSet').textContent=s?fmtT(s.set):'—';
+    $('cDawn').textContent=c?fmtT(c.rise):'—'; $('cDusk').textContent=c?fmtT(c.set):'—';
+    $('dayLen').textContent=s?hm(s.set-s.rise):'—';
+    const mo=moon(date); $('moonTxt').textContent=mo.name.replace(' moon','')+' '+Math.round(mo.illum*100)+'%';
+    $('countdown').textContent='';
+    const peak=peakFor(date), off=Math.round((date-peak)/DAY), [ph,desc]=phase(off);
+    $('rutPhase').textContent=ph; $('rutDesc').textContent=desc;
+    $('rutPct').textContent=Math.round(rutIdx(off)*100)+'%';
+    $('peakIn').value=ymd(peak);
+    $('peakNote').textContent=off===0?'Peak is today.':off<0?(-off)+' days to peak':off+' days past peak';
+    rutChart(date,peak);
+  }
+
+  // ================= PROPERTY =================
+  let bound=store.get('bloodtrail.bound',[]);
+  let walking=false, draft=[], watchId=null, prevInside=null;
+  function propMsg(t){const m=$('propMsg'); m.hidden=!t; m.textContent=t||''}
+  function proj(ref){ const k=Math.cos(ref.lat*RAD); return p=>({x:(p.lon-ref.lon)*k*111320, y:(p.lat-ref.lat)*110540}); }
+  function ringArea(ring,P){ let a=0; const pts=ring.map(([la,lo])=>P({lat:la,lon:lo})); for(let i=0;i<pts.length;i++){const p=pts[i],q=pts[(i+1)%pts.length]; a+=p.x*q.y-q.x*p.y} return Math.abs(a)/2; }
+  function inside(pt,rings,P){ const q=P(pt); let ins=false;
+    rings.forEach(r=>{ const v=r.map(([la,lo])=>P({lat:la,lon:lo})); for(let i=0,j=v.length-1;i<v.length;j=i++){ if(((v[i].y>q.y)!==(v[j].y>q.y)) && q.x<(v[j].x-v[i].x)*(q.y-v[i].y)/(v[j].y-v[i].y)+v[i].x) ins=!ins; } });
+    return ins; }
+  function edgeDist(pt,rings,P){ const q=P(pt); let best=Infinity;
+    rings.forEach(r=>{ const v=r.map(([la,lo])=>P({lat:la,lon:lo})); for(let i=0;i<v.length;i++){ const a=v[i],b=v[(i+1)%v.length],dx=b.x-a.x,dy=b.y-a.y,l=dx*dx+dy*dy;
+      let t=l?((q.x-a.x)*dx+(q.y-a.y)*dy)/l:0; t=Math.max(0,Math.min(1,t)); best=Math.min(best,Math.hypot(q.x-a.x-t*dx,q.y-a.y-t*dy)); } });
+    return best; }
+  function gpsSpots(){ return log.filter(s=>s.lat!=null).slice().reverse(); }
+
+  function renderStatus(){
+    const st=$('propStatus'), s1=$('propState'), s2=$('propDetail');
+    st.className='status'; s1.className='big v-none';
+    if(walking){ s1.textContent='Walking the line'; s2.textContent=draft.length+' corner'+(draft.length===1?'':'s')+' dropped'; return; }
+    if(!bound.length){ s1.textContent='No boundary set'; s2.textContent='Walk your property lines or import a boundary file to get started.'; return; }
+    if(!lastPos){ s1.textContent='Boundary loaded'; s2.textContent='Turn on GPS tracking to see where you stand.'; return; }
+    const ref={lat:bound[0][0][0],lon:bound[0][0][1]}, P=proj(ref);
+    const ins=inside(lastPos,bound,P), dyd=Math.round(edgeDist(lastPos,bound,P)*YD), acc=Math.round((lastPos.acc||0)*YD);
+    if(ins && dyd>40){ st.classList.add('in'); s1.className='big v-strong'; s1.textContent='Inside your property'; s2.textContent=dyd+' yd to nearest line · GPS ±'+acc+' yd'; }
+    else if(ins){ st.classList.add('near'); s1.className='big v-maybe'; s1.textContent='Near the line'; s2.textContent='Inside, '+dyd+' yd from line · GPS ±'+acc+' yd'; }
+    else { st.classList.add('out'); s1.className='big v-bad'; s1.textContent='Outside your property'; s2.textContent=dyd+' yd past the line · GPS ±'+acc+' yd. Get permission before going further.'; }
+    if(prevInside===true && !ins && navigator.vibrate){ try{navigator.vibrate([250,120,250,120,250])}catch(e){} }
+    prevInside=ins;
+  }
+
+  // live map
+  const BASES={
+    sat:{url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',o:{maxNativeZoom:19,maxZoom:20,attribution:'Imagery © Esri, Maxar, Earthstar Geographics'}},
+    topo:{url:'https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}',o:{maxNativeZoom:16,maxZoom:20,attribution:'USGS The National Map'}},
+    street:{url:'https://tile.openstreetmap.org/{z}/{x}/{y}.png',o:{maxNativeZoom:19,maxZoom:20,attribution:'© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors'}},
+    plain:null };
+  let lmap=null, lgroup=null, base=null, baseKey=store.get('bloodtrail.base','sat'), tileOk=0, tileBad=0, fitPending=true, follow=false;
+  function mapNote(t){const m=$('mapNote'); m.hidden=!t; m.textContent=t||''}
+  function initLeaflet(){
+    if(lmap) return true; if(!window.L||$('tab-property').hidden) return false;
+    $('lmap').hidden=false; $('map').hidden=true; $('mapEmpty').hidden=true;
+    try{
+      lmap=L.map('lmap',{preferCanvas:true,zoomControl:true}).setView([loc.lat,loc.lon],15);
+      lmap.attributionControl.setPrefix(false);
+      L.control.scale({imperial:true,metric:false,position:'bottomleft'}).addTo(lmap);
+      lgroup=L.layerGroup().addTo(lmap);
+      lmap.on('dragstart',()=>{follow=false});
+      $('layerSeg').hidden=false;
+      $('layerSeg').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===baseKey));
+      setBase(baseKey);
+      return true;
+    }catch(e){ lmap=null; $('lmap').hidden=true; $('map').hidden=false; return false; }
+  }
+  function setBase(k){ if(!lmap) return; baseKey=k; store.set('bloodtrail.base',k); if(base){lmap.removeLayer(base); base=null} tileOk=0; tileBad=0; mapNote('');
+    const b=BASES[k]; if(!b) return; base=L.tileLayer(b.url,b.o).addTo(lmap);
+    base.on('tileload',()=>{tileOk++; mapNote('')});
+    base.on('tileerror',()=>{tileBad++; if(!tileOk&&tileBad>=4) mapNote('Map imagery not loading — needs cell signal. Open from your GitHub link, not inside Claude. Your lines and position still show.')}); }
+  seg('layerSeg',v=>setBase(v));
+  function drawLeaflet(){
+    lgroup.clearLayers();
+    const C={blaze:css('--blaze'),hit:css('--hit'),fg:css('--fg'),warn:css('--warn')}, all=[];
+    bound.forEach(r=>{ L.polygon(r,{color:C.blaze,weight:3,fillColor:C.blaze,fillOpacity:.12,interactive:false}).addTo(lgroup); r.forEach(p=>all.push(p)); });
+    if(draft.length){ L.polyline(draft,{color:C.warn,weight:2,dashArray:'6 5',interactive:false}).addTo(lgroup);
+      draft.forEach(p=>{ L.circleMarker(p,{radius:5,color:'#000',weight:1,fillColor:C.warn,fillOpacity:1,interactive:false}).addTo(lgroup); all.push(p); }); }
+    const sp=gpsSpots().map(s=>[s.lat,s.lon]);
+    if(sp.length>1) L.polyline(sp,{color:C.hit,weight:3,dashArray:'4 4',interactive:false}).addTo(lgroup);
+    sp.forEach((p,i)=>{ L.marker(p,{icon:L.divIcon({className:'spot-ic',html:String(i+1),iconSize:[22,22]}),interactive:false,keyboard:false}).addTo(lgroup); all.push(p); });
+    if(lastPos){ const p=[lastPos.lat,lastPos.lon];
+      if(lastPos.acc) L.circle(p,{radius:lastPos.acc,color:C.fg,weight:1,fillColor:C.fg,fillOpacity:.12,interactive:false}).addTo(lgroup);
+      L.circleMarker(p,{radius:8,color:'#000',weight:3,fillColor:'#fff',fillOpacity:1,interactive:false}).addTo(lgroup); all.push(p);
+      if(follow) lmap.panTo(p); }
+    if(fitPending && all.length){ fitPending=false; if(all.length===1) lmap.setView(all[0],17); else lmap.fitBounds(L.latLngBounds(all),{padding:[30,30],maxZoom:18}); }
+  }
+  $('centerBtn').onclick=()=>{ const go=p=>{ follow=true; if(lmap) lmap.setView([p.lat,p.lon],Math.max(lmap.getZoom(),17)); renderProperty(); };
+    if(lastPos&&Date.now()-lastPos.t<30000) go(lastPos); else { propMsg(''); getPos(12000).then(go).catch(e=>propMsg(gpsErr(e))); } };
+  $('fitBtn').onclick=()=>{ follow=false; fitPending=true; renderProperty(); };
+
+  function drawMap(){
+    if(initLeaflet()){ drawLeaflet(); return; }
+    const cv=$('map'), box=cv.parentElement, dpr=window.devicePixelRatio||1, W=box.clientWidth||320, H=box.clientHeight||320;
+    cv.width=W*dpr; cv.height=H*dpr; const g=cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,H);
+    const spots=gpsSpots(), pts=[]; bound.forEach(r=>r.forEach(([la,lo])=>pts.push({lat:la,lon:lo}))); draft.forEach(([la,lo])=>pts.push({lat:la,lon:lo}));
+    spots.forEach(s=>pts.push(s)); if(lastPos) pts.push(lastPos);
+    $('mapEmpty').hidden=pts.length>0; if(!pts.length) return;
+    const ref=pts[0], P=proj(ref), xy=pts.map(P);
+    let x0=Math.min(...xy.map(p=>p.x)),x1=Math.max(...xy.map(p=>p.x)),y0=Math.min(...xy.map(p=>p.y)),y1=Math.max(...xy.map(p=>p.y));
+    const span=Math.max(x1-x0,y1-y0,60), pad=28, sc=(Math.min(W,H)-pad*2)/span, cx=(x0+x1)/2, cy=(y0+y1)/2;
+    const S=p=>{const q=P(p); return [W/2+(q.x-cx)*sc, H/2-(q.y-cy)*sc]};
+    const C={blaze:css('--blaze'),hit:css('--hit'),fg:css('--fg'),muted:css('--muted'),line:css('--line'),warn:css('--warn')};
+    bound.forEach(r=>{ g.beginPath(); r.forEach(([la,lo],i)=>{const [x,y]=S({lat:la,lon:lo}); i?g.lineTo(x,y):g.moveTo(x,y)}); g.closePath();
+      g.globalAlpha=.12; g.fillStyle=C.blaze; g.fill(); g.globalAlpha=1; g.lineWidth=2.5; g.strokeStyle=C.blaze; g.stroke(); });
+    if(draft.length){ g.beginPath(); draft.forEach(([la,lo],i)=>{const [x,y]=S({lat:la,lon:lo}); i?g.lineTo(x,y):g.moveTo(x,y)}); g.setLineDash([6,5]); g.lineWidth=2; g.strokeStyle=C.warn; g.stroke(); g.setLineDash([]);
+      draft.forEach(([la,lo])=>{const [x,y]=S({lat:la,lon:lo}); g.fillStyle=C.warn; g.fillRect(x-4,y-4,8,8)}); }
+    if(spots.length>1){ g.beginPath(); spots.forEach((s,i)=>{const [x,y]=S(s); i?g.lineTo(x,y):g.moveTo(x,y)}); g.setLineDash([4,4]); g.lineWidth=2; g.strokeStyle=C.hit; g.stroke(); g.setLineDash([]); }
+    g.font='600 11px '+css('--mono');
+    spots.forEach((s,i)=>{const [x,y]=S(s); g.beginPath(); g.arc(x,y,5,0,7); g.fillStyle=C.hit; g.fill(); g.fillStyle=C.fg; g.fillText(String(i+1),x+7,y-6)});
+    if(lastPos){ const [x,y]=S(lastPos); const r=Math.max(6,(lastPos.acc||0)*sc);
+      g.beginPath(); g.arc(x,y,r,0,7); g.globalAlpha=.15; g.fillStyle=C.fg; g.fill(); g.globalAlpha=1;
+      g.beginPath(); g.arc(x,y,7,0,7); g.fillStyle=C.fg; g.fill(); g.lineWidth=3; g.strokeStyle='#000'; g.stroke(); }
+    g.fillStyle=C.muted; g.font='700 13px '+css('--mono'); g.textAlign='center'; g.fillText('N',W-18,22);
+    g.beginPath(); g.moveTo(W-18,26); g.lineTo(W-23,38); g.lineTo(W-13,38); g.closePath(); g.fill();
+    const opts=[10,25,50,100,200,250,500,1000,2000,5000]; let yd=opts[0]; opts.forEach(o=>{ if(o/YD*sc<=W*0.3) yd=o });
+    const px=yd/YD*sc; g.strokeStyle=C.muted; g.lineWidth=2; g.beginPath(); g.moveTo(14,H-14); g.lineTo(14+px,H-14); g.moveTo(14,H-19); g.lineTo(14,H-9); g.moveTo(14+px,H-19); g.lineTo(14+px,H-9); g.stroke();
+    g.textAlign='left'; g.font='500 11px '+css('--mono'); g.fillText(yd+' yd',14,H-22);
+  }
+
+  function renderProperty(){
+    let ac='—'; if(bound.length){ const P=proj({lat:bound[0][0][0],lon:bound[0][0][1]}); ac=(bound.reduce((a,r)=>a+ringArea(r,P),0)/4046.86).toFixed(1); }
+    $('pAcres').textContent=ac;
+    const sp=gpsSpots(); $('pSpots').textContent=sp.length;
+    let len=0; for(let i=1;i<sp.length;i++) len+=hav(sp[i-1],sp[i]); $('pTrail').textContent=sp.length>1?Math.round(len*YD)+' yd':'—';
+    const gp=lastPos||sp[sp.length-1]||(!loc.example&&loc);
+    $('gmapsLink').href=gp?'https://www.google.com/maps/search/?api=1&query='+gp.lat.toFixed(6)+','+gp.lon.toFixed(6):'https://www.google.com/maps';
+    renderStatus(); drawMap();
+  }
+  window.addEventListener('resize',()=>{ if(!$('tab-property').hidden) drawMap(); });
+
+  $('trackBtn').onclick=()=>{
+    if(watchId!==null){ navigator.geolocation.clearWatch(watchId); watchId=null; $('trackBtn').innerHTML='<svg viewBox="0 0 24 24" style="width:18px;height:18px"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0013 3.06V1h-2v2.06A8.994 8.994 0 003.06 11H1v2h2.06A8.994 8.994 0 0011 20.94V23h2v-2.06A8.994 8.994 0 0020.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>Track my GPS: off'; $('trackBtn').classList.remove('on'); return; }
+    if(!navigator.geolocation){ propMsg(gpsErr({code:9})); return; }
+    propMsg(''); $('trackBtn').innerHTML='<svg viewBox="0 0 24 24" style="width:18px;height:18px"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0013 3.06V1h-2v2.06A8.994 8.994 0 003.06 11H1v2h2.06A8.994 8.994 0 0011 20.94V23h2v-2.06A8.994 8.994 0 0020.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>Track my GPS: starting…';
+    try{
+      watchId=navigator.geolocation.watchPosition(p=>{ lastPos={lat:p.coords.latitude,lon:p.coords.longitude,acc:p.coords.accuracy,t:Date.now()};
+        $('trackBtn').innerHTML='<svg viewBox="0 0 24 24" style="width:18px;height:18px"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0013 3.06V1h-2v2.06A8.994 8.994 0 003.06 11H1v2h2.06A8.994 8.994 0 0011 20.94V23h2v-2.06A8.994 8.994 0 0020.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>Track my GPS: on'; $('trackBtn').classList.add('on'); if(!$('tab-property').hidden) renderProperty(); },
+        e=>{ propMsg(gpsErr(e)); if(e.code===1){ navigator.geolocation.clearWatch(watchId); watchId=null; $('trackBtn').innerHTML='<svg viewBox="0 0 24 24" style="width:18px;height:18px"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0013 3.06V1h-2v2.06A8.994 8.994 0 003.06 11H1v2h2.06A8.994 8.994 0 0011 20.94V23h2v-2.06A8.994 8.994 0 0020.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>Track my GPS: off'; $('trackBtn').classList.remove('on'); } },
+        {enableHighAccuracy:true,maximumAge:3000,timeout:20000});
+    }catch(e){ propMsg(gpsErr({code:9})); }
+  };
+
+  function walkUI(){ $('walkStart').hidden=walking; ['walkDrop','walkUndo','walkDone','walkCancel'].forEach(id=>$(id).hidden=!walking);
+    $('walkDone').disabled=draft.length<3; $('walkUndo').disabled=!draft.length; renderProperty(); }
+  $('walkStart').onclick=()=>{ walking=true; draft=[]; propMsg(''); walkUI(); };
+  $('walkDrop').onclick=()=>{ $('walkDrop').textContent='Getting GPS…'; $('walkDrop').disabled=true;
+    getPos(15000).then(p=>{ draft.push([p.lat,p.lon]); propMsg(p.acc>15?'GPS accuracy is ±'+Math.round(p.acc*YD)+' yd. Wait in the open for a tighter fix.':''); walkUI(); })
+    .catch(e=>propMsg(gpsErr(e))).finally(()=>{ $('walkDrop').textContent='Drop corner here'; $('walkDrop').disabled=false; }); };
+  $('walkUndo').onclick=()=>{ draft.pop(); walkUI(); };
+  $('walkCancel').onclick=()=>{ walking=false; draft=[]; walkUI(); };
+  $('walkDone').onclick=()=>{ if(draft.length<3) return; bound=[draft.slice()]; store.set('bloodtrail.bound',bound); walking=false; fitPending=true; draft=[]; prevInside=null; walkUI(); };
+
+  function parseBoundary(text,name){
+    const rings=[]; const t=text.trim();
+    if(t[0]==='{'||t[0]==='['){ const gj=JSON.parse(t);
+      const geom=g=>{ if(!g) return; if(g.type==='Polygon') rings.push(g.coordinates[0]); else if(g.type==='MultiPolygon') g.coordinates.forEach(p=>rings.push(p[0]));
+        else if(g.type==='LineString') rings.push(g.coordinates); else if(g.type==='MultiLineString') g.coordinates.forEach(l=>rings.push(l)); else if(g.type==='GeometryCollection') g.geometries.forEach(geom); };
+      const walk=o=>{ if(!o) return; if(o.type==='FeatureCollection') o.features.forEach(walk); else if(o.type==='Feature') geom(o.geometry); else geom(o); };
+      walk(gj); return rings.map(r=>r.map(c=>[c[1],c[0]])).filter(r=>r.length>=3);
+    }
+    const xml=new DOMParser().parseFromString(t,'application/xml');
+    if(xml.getElementsByTagName('parsererror').length) throw new Error('bad');
+    const coords=xml.getElementsByTagName('coordinates');
+    for(const c of coords){ const r=c.textContent.trim().split(/\s+/).map(s=>s.split(',').map(Number)).filter(a=>a.length>=2&&!isNaN(a[0])&&!isNaN(a[1])).map(a=>[a[1],a[0]]); if(r.length>=3) rings.push(r); }
+    if(!rings.length){ const segs=xml.getElementsByTagName('trkseg'); const groups=segs.length?[...segs].map(s=>[...s.getElementsByTagName('trkpt')]):[];
+      const rte=xml.getElementsByTagName('rtept'), wpt=xml.getElementsByTagName('wpt'); if(rte.length) groups.push([...rte]); if(!groups.length&&wpt.length) groups.push([...wpt]);
+      groups.forEach(gp=>{ const r=gp.map(p=>[parseFloat(p.getAttribute('lat')),parseFloat(p.getAttribute('lon'))]).filter(a=>!isNaN(a[0])&&!isNaN(a[1])); if(r.length>=3) rings.push(r); }); }
+    return rings;
+  }
+  $('importBtn').onclick=()=>$('importIn').click();
+  $('importIn').onchange=e=>{ const f=e.target.files&&e.target.files[0]; e.target.value=''; if(!f) return;
+    if(/\.kmz$/i.test(f.name)){ propMsg('KMZ files are zipped. In Google Earth, export as KML instead.'); return; }
+    const rd=new FileReader(); rd.onload=()=>{ try{ const r=parseBoundary(String(rd.result),f.name);
+        if(!r.length){ propMsg('No boundary found in that file. It needs a polygon, path or track with at least 3 points.'); return; }
+        bound=r; store.set('bloodtrail.bound',bound); prevInside=null; fitPending=true; propMsg(''); renderProperty();
+      }catch(err){ propMsg('Could not read that file. Use a KML, GPX or GeoJSON file.'); } };
+    rd.onerror=()=>propMsg('Could not open that file.'); rd.readAsText(f); };
+  $('clearBound').onclick=()=>{ if(bound.length) $('confirmBound').hidden=false; };
+  $('noBound').onclick=()=>$('confirmBound').hidden=true;
+  $('yesBound').onclick=()=>{ fitPending=true; bound=[]; store.set('bloodtrail.bound',bound); prevInside=null; $('confirmBound').hidden=true; renderProperty(); };
+
+  // ================= UPSELL HANDLERS =================
+  $('upsellClose').onclick=hideUpsell;
+  $('buyBtn').onclick=async()=>{
+    if(digitalGoodsService){
+      // Inside TWA — use real Google Play Billing
+      await purchaseSubscription();
+    } else {
+      // Web/browser fallback — direct unlock (for testing or web-only use)
+      unlockPro();
+    }
+  };
+  $('restoreBtn').onclick=async()=>{
+    if(digitalGoodsService){
+      // Check Google Play for existing subscription
+      try{
+        const purchases=await digitalGoodsService.listPurchases();
+        const sub=purchases.find(p=>p.itemId===SUB_PRODUCT_ID);
+        if(sub){ activatePro(sub); msg('Subscription restored!'); }
+        else msg('No active subscription found.',true);
+      }catch(e){ msg('Could not check purchases. Try again.',true); }
+    } else if(pro){
+      hideUpsell(); msg('Pro is already active.');
+    } else {
+      msg('Restore is available in the Android app from the Google Play Store.',true);
+    }
+  };
+
+  // ================= START =================
+  checkProExpiry();
+  updateSessionCount(); if(pro) $('proBadge').hidden=false;
+  initBilling(); // async — checks Play Store entitlements in background
+  sampleScene(); analyze(); renderLog(); renderExcl(); renderDay();
+  showTab(location.hash.slice(1));
+})();
+
+  // Register service worker for offline support
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('service-worker.js').catch(()=>{});
+  }
+</script>
+
+</html>
