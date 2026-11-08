@@ -1,0 +1,13 @@
+{
+  "background_color": "#0e100b",
+  "dir": "ltr",
+  "display": "standalone",
+  "name": "Blood Trail Finder",
+  "orientation": "portrait",
+  "scope": "/blood-trail/",
+  "short_name": "Blood Trail",
+  "start_url": "blood-trail/",
+  "theme_color": "#0e100b",
+  "id": "/blood-trail/",
+  "description": "Use your phone camera to detect and track deer blood trails while hunting."
+}
