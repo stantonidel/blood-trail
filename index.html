@@ -1,16 +1,5 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0e100b">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-</head>
-<body>
 <title>Blood Trail Finder</title>
-<link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Stencil+Display:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
@@ -166,6 +155,24 @@ input[type=date],input[type=number]{background:var(--card);color:var(--fg);borde
 .kv .lab{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-family:var(--mono)}
 .kv b{font:500 17px var(--mono);font-variant-numeric:tabular-nums}
 .count{font:500 13px var(--mono);color:var(--warn)}
+
+/* ===== SESSION GATE ===== */
+.session-timer{position:absolute;top:12px;right:12px;background:rgba(14,16,11,.85);color:var(--hit);font:700 22px var(--mono);padding:4px 10px;border-radius:8px;border:2px solid var(--hit);z-index:10;pointer-events:none}
+.session-timer.warn{color:var(--bad);border-color:var(--bad);animation:pulse .5s ease-in-out infinite alternate}
+@keyframes pulse{0%{opacity:1}100%{opacity:.5}}
+.session-count{font:500 12px var(--mono);color:var(--muted);text-align:center;margin:4px 0 0}
+.session-count.out{color:var(--bad)}
+.upsell-overlay{position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:200;display:flex;align-items:center;justify-content:center;padding:24px}
+.upsell-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);max-width:340px;width:100%;padding:28px 24px;text-align:center}
+.upsell-card h2{font-family:var(--display);font-size:24px;text-transform:uppercase;letter-spacing:.04em;color:var(--blaze);margin:0 0 8px}
+.upsell-card p{color:var(--muted);font-size:14px;line-height:1.5;margin:0 0 20px}
+.upsell-card .price{font:700 32px var(--display);color:var(--fg);margin:0 0 4px}
+.upsell-card .price small{font-size:14px;color:var(--muted);font-family:var(--body);font-weight:400}
+.upsell-card .buy-btn{display:block;width:100%;background:var(--blaze);color:#fff;border:0;border-radius:var(--radius-sm);padding:14px;font:700 16px var(--body);cursor:pointer;margin:16px 0 10px}
+.upsell-card .buy-btn:active{transform:scale(.97);opacity:.9}
+.upsell-card .restore{background:none;border:0;color:var(--muted);font:500 13px var(--body);cursor:pointer;text-decoration:underline}
+.upsell-card .close-x{background:none;border:0;color:var(--muted);font-size:13px;cursor:pointer;margin-top:10px}
+.pro-badge{display:inline-block;background:var(--blaze);color:#fff;font:700 10px var(--mono);padding:2px 6px;border-radius:4px;letter-spacing:.08em;vertical-align:middle;margin-left:6px}
 .note{font-size:13px;color:var(--muted);margin:0;line-height:1.5}
 .note.err{color:var(--warn)}
 
@@ -264,7 +271,7 @@ a.btn{text-decoration:none}
     <div class="app-logo"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg></div>
     <div class="app-title">
       <h1>Blood <span>Trail</span></h1>
-      <div class="sub">Deer tracking tool</div>
+      <div class="sub">Deer tracking tool<span class="pro-badge" id="proBadge" hidden>PRO</span></div>
     </div>
     <span class="src-badge" id="srcTag">Demo</span>
   </div>
@@ -272,11 +279,12 @@ a.btn{text-decoration:none}
   <!-- ================= SCAN TAB ================= -->
   <section class="tab" id="tab-scan">
 
-    <div class="vf" id="vf">
+    <div class="vf" id="vf" style="position:relative">
       <canvas id="out" width="640" height="480" aria-label="Viewfinder showing detected blood highlighted in cyan"></canvas>
       <div class="ret"></div>
       <span class="tag" id="vfTag">Demo scene — start your camera below</span>
       <span class="frz" id="frz" hidden>FROZEN · tap to resume</span>
+      <span class="session-timer" id="sessionTimer" hidden></span>
     </div>
 
     <div class="result-bar" aria-live="polite">
@@ -293,6 +301,7 @@ a.btn{text-decoration:none}
       <input type="file" id="photoIn" accept="image/*" capture="environment" hidden>
     </div>
     <p class="note" id="msg" hidden></p>
+    <div class="session-count" id="sessionCount"></div>
 
     <button class="btn mark full" id="markBtn" style="width:100%"><svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>Mark blood spot</button>
 
@@ -514,6 +523,18 @@ a.btn{text-decoration:none}
 
 </div>
 
+<!-- ===== UPSELL MODAL ===== -->
+<div class="upsell-overlay" id="upsell" hidden>
+  <div class="upsell-card">
+    <h2>Unlock Unlimited</h2>
+    <p>You've used all 3 free camera sessions for today. Upgrade to <b>Blood Trail Pro</b> for unlimited camera access — no daily limits, no timers.</p>
+    <div class="price">$3.99 <small>one-time</small></div>
+    <button class="buy-btn" id="buyBtn">Unlock Pro</button>
+    <button class="restore" id="restoreBtn">Restore purchase</button>
+    <button class="close-x" id="upsellClose">Not now</button>
+  </div>
+</div>
+
 <!-- ===== BOTTOM TAB BAR ===== -->
 <nav class="tab-bar" role="tablist">
   <a href="#scan" data-tab="scan" role="tab" aria-selected="true">
@@ -579,6 +600,46 @@ function toggleTip(btn){
   const FILT=store.get('bloodtrail.filters',{leaf:true,berry:true,orange:true});
   let excl=store.get('bloodtrail.excl',[]);
   let mode='both', view='overlay', sens=0.5, source='sample', stream=null, video=null, raf=0, frozen=false, torch=false, lastResult=null;
+
+  // ================= SESSION GATE (free tier) =================
+  const SESSION_LIMIT=3, SESSION_SECS=10;
+  let pro=store.get('bloodtrail.pro',false);
+  let sessionTimer=null, sessionRemaining=0;
+  function todayKey(){ return 'bt.sessions.'+ymd(new Date()); }
+  function sessionsUsed(){ return parseInt(localStorage.getItem(todayKey())||'0',10); }
+  function bumpSession(){ try{ localStorage.setItem(todayKey(), String(sessionsUsed()+1)); }catch(e){} }
+  function canStart(){ return pro || sessionsUsed() < SESSION_LIMIT; }
+  function updateTimerUI(){
+    let el=$('sessionTimer');
+    if(!el) return;
+    if(pro){ el.hidden=true; return; }
+    if(sessionRemaining>0){ el.hidden=false; el.textContent=sessionRemaining+'s'; el.className='session-timer'+(sessionRemaining<=3?' warn':''); }
+    else el.hidden=true;
+  }
+  function updateSessionCount(){
+    let el=$('sessionCount');
+    if(!el) return;
+    if(pro){ el.hidden=true; return; }
+    const used=sessionsUsed();
+    el.hidden=false; el.textContent=(SESSION_LIMIT-used)+' of '+SESSION_LIMIT+' free sessions left today';
+    el.className='session-count'+(used>=SESSION_LIMIT?' out':'');
+  }
+  function startSessionTimer(){
+    if(pro) return;
+    sessionRemaining=SESSION_SECS;
+    updateTimerUI();
+    sessionTimer=setInterval(()=>{
+      sessionRemaining--;
+      updateTimerUI();
+      if(sessionRemaining<=0){ clearInterval(sessionTimer); sessionTimer=null; stopLive(); updateSessionCount();
+        if(!canStart()) showUpsell(); }
+    },1000);
+  }
+  function clearSessionTimer(){ if(sessionTimer){clearInterval(sessionTimer);sessionTimer=null;} sessionRemaining=0; updateTimerUI(); }
+  function showUpsell(){ $('upsell').hidden=false; }
+  function hideUpsell(){ $('upsell').hidden=true; }
+  function unlockPro(){ pro=true; store.set('bloodtrail.pro',true); hideUpsell(); updateSessionCount(); updateTimerUI();
+    $('proBadge').hidden=false; msg('Pro unlocked — unlimited camera access.'); }
   const CELL=16;
   function msg(t,err){const m=$('msg'); if(!t){m.hidden=true;return} m.hidden=false; m.textContent=t; m.className='note'+(err?' err':'')}
 
@@ -697,6 +758,7 @@ function toggleTip(btn){
   }
   async function startLive(){
     if(stream){stopLive();return}
+    if(!canStart()){ showUpsell(); return; }
     if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){msg('Live camera not available here. Use Take photo instead, or open from your GitHub link.',true);return}
     try{ stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280}},audio:false}); }
     catch(e){stream=null; msg('Camera was blocked. Tap Take photo, or open from your GitHub link and allow camera access.',true); return}
@@ -704,12 +766,14 @@ function toggleTip(btn){
     source='live'; frozen=false; $('frz').hidden=true; msg('');
     $('srcTag').textContent='Live'; $('srcTag').className='src-badge live'; $('vfTag').textContent='Live — tap to freeze';
     $('liveBtn').innerHTML='<svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>Stop camera';
+    if(!pro){ bumpSession(); updateSessionCount(); startSessionTimer(); }
     const track=stream.getVideoTracks()[0], caps=track.getCapabilities?track.getCapabilities():{};
     $('torchBtn').hidden=!caps.torch;
     try{ navigator.wakeLock&&navigator.wakeLock.request('screen').catch(()=>{}) }catch(e){}
     loop();
   }
   function stopLive(){
+    clearSessionTimer();
     cancelAnimationFrame(raf); if(stream) stream.getTracks().forEach(t=>t.stop()); stream=null; video=null; torch=false;
     $('torchBtn').hidden=true; $('torchBtn').innerHTML='<svg viewBox="0 0 24 24"><path d="M9 21c0 .5.4 1 1 1h4c.6 0 1-.5 1-1v-1H9v1zm3-19C8.1 2 5 5.1 5 9c0 2.4 1.2 4.5 3 5.7V17c0 .5.4 1 1 1h6c.6 0 1-.5 1-1v-2.3c1.8-1.3 3-3.4 3-5.7 0-3.9-3.1-7-7-7z"/></svg>Light: off';
     $('liveBtn').innerHTML='<svg viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>Start camera';
@@ -746,9 +810,10 @@ function toggleTip(btn){
     msg('Color excluded. Only do this for things you know are NOT blood.'); renderExcl(); setArm(false); analyze(); }
 
   const photoImg=new Image();
-  $('photoBtn').onclick=()=>$('photoIn').click();
+  $('photoBtn').onclick=()=>{ if(!canStart()){ showUpsell(); return; } $('photoIn').click(); };
   $('photoIn').onchange=e=>{ const f=e.target.files&&e.target.files[0]; if(!f) return;
     if(stream) stopLive();
+    if(!pro){ bumpSession(); updateSessionCount(); }
     const url=URL.createObjectURL(f);
     photoImg.onload=()=>{ const W=Math.min(800,photoImg.naturalWidth), H=Math.round(W*photoImg.naturalHeight/photoImg.naturalWidth);
       work.width=W; work.height=H; wctx.drawImage(photoImg,0,0,W,H); source='photo';
@@ -1035,16 +1100,22 @@ function toggleTip(btn){
   $('noBound').onclick=()=>$('confirmBound').hidden=true;
   $('yesBound').onclick=()=>{ fitPending=true; bound=[]; store.set('bloodtrail.bound',bound); prevInside=null; $('confirmBound').hidden=true; renderProperty(); };
 
+  // ================= UPSELL HANDLERS =================
+  $('upsellClose').onclick=hideUpsell;
+  $('buyBtn').onclick=()=>{
+    // In a real Play Store app this triggers Google Play Billing.
+    // For now (web/PWA) we use a simple unlock — replace with billing integration.
+    unlockPro();
+  };
+  $('restoreBtn').onclick=()=>{
+    // In Play Store version, this calls billing.restorePurchases()
+    if(pro){ hideUpsell(); msg('Pro is already active.'); }
+    else msg('No previous purchase found. If you bought Pro, contact support.',true);
+  };
+
   // ================= START =================
+  updateSessionCount(); if(pro) $('proBadge').hidden=false;
   sampleScene(); analyze(); renderLog(); renderExcl(); renderDay();
   showTab(location.hash.slice(1));
-
-  // Register service worker for offline & PWA
-  if('serviceWorker' in navigator){
-    navigator.serviceWorker.register('service-worker.js').catch(()=>{});
-  }
 })();
 </script>
-
-</body>
-</html>
