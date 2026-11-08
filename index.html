@@ -1,23 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0e100b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+</head>
+<body>
 <title>Blood Trail Finder</title>
-<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Stencil+Display:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Stencil+Display:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
-/* Layout: one-column field tool with three tabs (Scan / Hunt day / Property); thumb-reach controls. Deliberately dark-only for low light in the woods. */
 :root{
-  --bg:#12140f;        /* timber shadow */
-  --panel:#1b1e17;
+  --bg:#0e100b;
+  --panel:#181b14;
+  --card:#1e2219;
   --line:#2d3226;
-  --fg:#e9e4d6;        /* bone */
-  --muted:#9a9a86;
-  --blaze:#ff6a13;     /* blaze orange */
-  --hit:#3df5ff;       /* detection cyan, readable for red-green colorblind eyes */
+  --fg:#eae5d8;
+  --muted:#8e8e7a;
+  --blaze:#ff6a13;
+  --hit:#3df5ff;
   --warn:#ffd23d;
   --bad:#ff4d4d;
+  --ok:#5ce66a;
   --display:"Big Shoulders Stencil Display","Impact","Arial Narrow",sans-serif;
   --body:"IBM Plex Sans",system-ui,sans-serif;
   --mono:"IBM Plex Mono",ui-monospace,monospace;
+  --radius:12px;
+  --radius-sm:8px;
   color-scheme:dark;
 }
 [hidden]{display:none!important}
@@ -25,19 +39,55 @@ html,body{background:var(--bg);color:var(--fg)}
 body{margin:0}
 *,*::before,*::after{box-sizing:border-box}
 img{max-width:100%}
-body{font-family:var(--body);font-size:15px;line-height:1.45;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px 28px}
-.wrap{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
-section.tab{display:flex;flex-direction:column;gap:14px}
-header{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
-h1{font-family:var(--display);font-weight:800;font-size:34px;letter-spacing:.02em;margin:0;line-height:1;text-transform:uppercase}
-h1 span{color:var(--blaze)}
-.src{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);padding:3px 7px;border-radius:3px;white-space:nowrap}
-.src.live{color:var(--hit);border-color:var(--hit)}
-nav.tabs{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line);border-radius:6px;overflow:hidden}
-nav.tabs a{display:block;text-align:center;padding:11px 4px;font:600 14px var(--body);color:var(--muted);text-decoration:none;background:var(--panel)}
-nav.tabs a+a{border-left:1px solid var(--line)}
-nav.tabs a[aria-selected="true"]{color:var(--bg);background:var(--blaze)}
-.vf{position:relative;width:100%;max-width:100%;aspect-ratio:4/3;background:#000;border-radius:6px;overflow:hidden;border:1px solid var(--line)}
+
+body{font-family:var(--body);font-size:15px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-top:12px;
+  padding-bottom:calc(72px + env(safe-area-inset-bottom,12px));
+}
+.wrap{max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+section.tab{display:flex;flex-direction:column;gap:16px}
+
+/* ===== APP HEADER ===== */
+.app-head{display:flex;align-items:center;gap:12px;padding-bottom:4px}
+.app-logo{width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,var(--blaze),#cc4400);display:flex;align-items:center;justify-content:center}
+.app-logo svg{width:24px;height:24px;fill:white}
+.app-title{flex:1}
+.app-title h1{font-family:var(--display);font-weight:800;font-size:28px;letter-spacing:.02em;margin:0;line-height:1;text-transform:uppercase}
+.app-title h1 span{color:var(--blaze)}
+.app-title .sub{font-size:11px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase;font-family:var(--mono)}
+.src-badge{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);padding:4px 10px;border-radius:20px;white-space:nowrap}
+.src-badge.live{color:var(--hit);border-color:var(--hit);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+
+/* ===== BOTTOM TAB BAR ===== */
+.tab-bar{position:fixed;bottom:0;left:0;right:0;z-index:900;background:var(--panel);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(3,1fr);padding-bottom:env(safe-area-inset-bottom,8px)}
+.tab-bar a{display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 4px 6px;text-decoration:none;color:var(--muted);font:600 11px var(--body);letter-spacing:.02em;transition:color .15s}
+.tab-bar a svg{width:22px;height:22px;fill:currentColor;transition:fill .15s}
+.tab-bar a[aria-selected="true"]{color:var(--blaze)}
+.tab-bar a:active{transform:scale(.95)}
+
+/* ===== ONBOARDING OVERLAY ===== */
+.onboard{position:fixed;inset:0;z-index:1000;background:var(--bg);display:flex;flex-direction:column;justify-content:center;align-items:center;padding:32px 24px;text-align:center;gap:24px;overflow-y:auto}
+.onboard .ob-icon{width:80px;height:80px;border-radius:20px;background:linear-gradient(135deg,var(--blaze),#cc4400);display:flex;align-items:center;justify-content:center;margin:0 auto}
+.onboard .ob-icon svg{width:48px;height:48px;fill:white}
+.onboard h2{font-family:var(--display);font-size:32px;text-transform:uppercase;margin:0;letter-spacing:.03em}
+.onboard h2 span{color:var(--blaze)}
+.onboard p{color:var(--muted);max-width:340px;margin:0;font-size:15px}
+.onboard .ob-features{display:flex;flex-direction:column;gap:12px;max-width:340px;width:100%;text-align:left}
+.onboard .ob-feat{display:flex;gap:12px;align-items:flex-start}
+.onboard .ob-feat .ob-ic{flex:0 0 36px;height:36px;border-radius:8px;background:var(--card);border:1px solid var(--line);display:flex;align-items:center;justify-content:center}
+.onboard .ob-feat .ob-ic svg{width:18px;height:18px;fill:var(--blaze)}
+.onboard .ob-feat div{flex:1}
+.onboard .ob-feat strong{font-size:14px;display:block;margin-bottom:2px}
+.onboard .ob-feat small{font-size:12.5px;color:var(--muted)}
+.btn-start{width:100%;max-width:340px;min-height:52px;border-radius:var(--radius);border:0;background:var(--blaze);color:#160800;font:700 16px var(--body);cursor:pointer;letter-spacing:.02em}
+.btn-start:active{transform:scale(.97)}
+.onboard .ob-skip{background:none;border:0;color:var(--muted);font:500 13px var(--body);cursor:pointer;text-decoration:underline}
+
+/* ===== VIEWFINDER ===== */
+.vf{position:relative;width:100%;max-width:100%;aspect-ratio:4/3;background:#000;border-radius:var(--radius);overflow:hidden;border:1px solid var(--line)}
 .vf canvas{width:100%;height:100%;display:block;object-fit:cover}
 .vf .ret{position:absolute;inset:0;pointer-events:none;background:
   linear-gradient(var(--blaze),var(--blaze)) left 10px top 10px/18px 2px no-repeat,
@@ -48,70 +98,113 @@ nav.tabs a[aria-selected="true"]{color:var(--bg);background:var(--blaze)}
   linear-gradient(var(--blaze),var(--blaze)) left 10px bottom 10px/2px 18px no-repeat,
   linear-gradient(var(--blaze),var(--blaze)) right 10px bottom 10px/18px 2px no-repeat,
   linear-gradient(var(--blaze),var(--blaze)) right 10px bottom 10px/2px 18px no-repeat}
-.vf .tag{position:absolute;left:12px;bottom:12px;font-family:var(--mono);font-size:11px;background:rgba(0,0,0,.6);color:var(--fg);padding:3px 7px;border-radius:3px}
-.vf .frz{position:absolute;right:12px;bottom:12px;font-family:var(--mono);font-size:11px;background:var(--warn);color:#000;padding:3px 7px;border-radius:3px}
-.readout{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:6px;overflow:hidden}
-.readout.two{grid-template-columns:repeat(2,1fr)}
-.readout div{background:var(--panel);padding:9px 11px;min-width:0}
-.readout small,.lab{display:block;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
-.readout b{font-family:var(--mono);font-weight:500;font-size:18px;font-variant-numeric:tabular-nums}
-.readout .wide{grid-column:1/-1}
-.big{font-family:var(--display);font-size:24px;letter-spacing:.03em;text-transform:uppercase;line-height:1.1}
+.vf .tag{position:absolute;left:12px;bottom:12px;font-family:var(--mono);font-size:11px;background:rgba(0,0,0,.65);color:var(--fg);padding:4px 8px;border-radius:6px;backdrop-filter:blur(4px)}
+.vf .frz{position:absolute;right:12px;bottom:12px;font-family:var(--mono);font-size:11px;background:var(--warn);color:#000;padding:4px 8px;border-radius:6px;font-weight:600}
+
+/* ===== RESULT READOUT ===== */
+.result-bar{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+.result-bar.two{grid-template-columns:1fr 1fr}
+.result-bar div{background:var(--card);padding:12px;text-align:center}
+.result-bar .lab{display:block;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;font-family:var(--mono)}
+.result-bar b{font-family:var(--mono);font-weight:500;font-size:18px;font-variant-numeric:tabular-nums}
+.result-bar .wide{grid-column:1/-1}
+.big{font-family:var(--display);font-size:22px;letter-spacing:.03em;text-transform:uppercase;line-height:1.1}
 .v-strong{color:var(--hit)} .v-maybe{color:var(--warn)} .v-none{color:var(--muted)} .v-bad{color:var(--bad)}
-.row{display:flex;flex-wrap:wrap;gap:8px}
-.seg{display:flex;flex:1 1 auto;border:1px solid var(--line);border-radius:6px;overflow:hidden}
-.seg button{flex:1;background:var(--panel);color:var(--muted);border:0;padding:10px 6px;font:600 13px var(--body);cursor:pointer}
+
+/* ===== ACTION BUTTONS ===== */
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.actions.three{grid-template-columns:1fr 1fr 1fr}
+.btn{min-height:48px;border-radius:var(--radius-sm);border:1px solid var(--line);background:var(--card);color:var(--fg);font:600 14px var(--body);cursor:pointer;padding:0 14px;display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .1s}
+.btn:active{transform:scale(.97)}
+.btn svg{width:18px;height:18px;fill:currentColor;flex-shrink:0}
+.btn.sm{min-height:40px;font-size:13px}
+.btn.primary{background:var(--blaze);border-color:var(--blaze);color:#160800}
+.btn.primary svg{fill:#160800}
+.btn.mark{background:transparent;border:2px solid var(--hit);color:var(--hit)}
+.btn.mark svg{fill:var(--hit)}
+.btn.on{border-color:var(--hit);color:var(--hit)}
+.btn.on svg{fill:var(--hit)}
+.btn[disabled]{opacity:.35;cursor:default;transform:none}
+.btn:focus-visible,input:focus-visible,.tab-bar a:focus-visible{outline:2px solid var(--hit);outline-offset:2px}
+.btn.full{grid-column:1/-1}
+
+/* ===== INFO TIP ===== */
+.info-btn{background:none;border:0;color:var(--muted);cursor:pointer;padding:4px;display:inline-flex;align-items:center;vertical-align:middle;border-radius:50%}
+.info-btn svg{width:16px;height:16px;fill:currentColor}
+.info-btn:hover,.info-btn[aria-expanded="true"]{color:var(--hit)}
+.tip{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-sm);padding:12px 14px;font-size:13px;color:var(--muted);line-height:1.55;margin-top:8px}
+.tip b,.tip strong{color:var(--fg);font-weight:600}
+.tip ul,.tip ol{padding-left:18px;margin:6px 0 0;display:flex;flex-direction:column;gap:4px}
+
+/* ===== CARDS ===== */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;display:flex;flex-direction:column;gap:12px}
+.card h3{font-family:var(--display);font-size:19px;letter-spacing:.03em;text-transform:uppercase;margin:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.card h3 .right{margin-left:auto;display:flex;align-items:center;gap:6px}
+.chip{font:500 10px var(--mono);letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:4px;white-space:nowrap}
+.chip.warn{color:var(--warn);border:1px solid var(--warn)}
+.chip.muted{color:var(--muted);border:1px solid var(--line)}
+.chip.ok{color:var(--ok);border:1px solid var(--ok)}
+
+/* ===== SETTINGS SECTION ===== */
+.settings-group{border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+.setting{background:var(--card);padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.setting+.setting{border-top:1px solid var(--line)}
+.setting-head{display:flex;align-items:center;gap:8px}
+.setting-head svg{width:16px;height:16px;fill:var(--muted);flex-shrink:0}
+.setting-head .lab{flex:1;font:600 13px var(--body);letter-spacing:.02em;text-transform:uppercase;color:var(--fg);margin:0}
+.seg{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{flex:1;background:var(--panel);color:var(--muted);border:0;padding:9px 6px;font:600 12px var(--body);cursor:pointer;transition:background .15s,color .15s}
 .seg button+button{border-left:1px solid var(--line)}
 .seg button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
-.lab{margin-bottom:5px}
-.ctl{display:flex;flex-direction:column}
+.seg button:active{transform:scale(.97)}
 input[type=range]{width:100%;accent-color:var(--blaze);height:28px}
-input[type=date],input[type=number]{background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:10px;font:500 15px var(--mono);min-height:44px;width:100%}
-.btn{flex:1 1 auto;min-height:48px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font:600 15px var(--body);cursor:pointer;padding:0 14px}
-.btn.sm{min-height:38px;font-size:13px;flex:0 1 auto}
-.btn.primary{background:var(--blaze);border-color:var(--blaze);color:#160800}
-.btn.mark{background:transparent;border-color:var(--hit);color:var(--hit)}
-.btn.on{border-color:var(--hit);color:var(--hit)}
-.btn[disabled]{opacity:.4;cursor:default}
-.btn:focus-visible,.seg button:focus-visible,input:focus-visible,nav.tabs a:focus-visible{outline:2px solid var(--hit);outline-offset:2px}
-.note{font-size:13px;color:var(--muted);margin:0}
-.note.err{color:var(--warn)}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:10px;min-width:0}
-.card h3{font-family:var(--display);font-size:20px;letter-spacing:.03em;text-transform:uppercase;margin:0;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
-.chip{font:500 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--warn);border:1px solid var(--warn);padding:2px 6px;border-radius:3px}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.kv{display:flex;flex-direction:column;min-width:0}
+input[type=date],input[type=number]{background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:var(--radius-sm);padding:10px 12px;font:500 15px var(--mono);min-height:44px;width:100%}
+
+/* ===== DATA GRIDS ===== */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.kv{display:flex;flex-direction:column;min-width:0;gap:2px}
+.kv .lab{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-family:var(--mono)}
 .kv b{font:500 17px var(--mono);font-variant-numeric:tabular-nums}
-.count{font:500 14px var(--mono);color:var(--warn)}
-h2{font-family:var(--display);font-size:22px;text-transform:uppercase;letter-spacing:.03em;margin:8px 0 0;display:flex;justify-content:space-between;align-items:center}
-h2 button{font:500 12px var(--body);background:none;border:0;color:var(--muted);text-decoration:underline;cursor:pointer}
+.count{font:500 13px var(--mono);color:var(--warn)}
+.note{font-size:13px;color:var(--muted);margin:0;line-height:1.5}
+.note.err{color:var(--warn)}
+
+/* ===== TRAIL LOG ===== */
+h2.section{font-family:var(--display);font-size:20px;text-transform:uppercase;letter-spacing:.03em;margin:8px 0 0;display:flex;align-items:center;gap:8px}
+h2.section .right{margin-left:auto}
+h2.section button{font:500 12px var(--body);background:none;border:0;color:var(--muted);text-decoration:underline;cursor:pointer}
 ol.log{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
-ol.log li{display:grid;grid-template-columns:64px 1fr;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px}
-ol.log img{width:64px;height:48px;object-fit:cover;border-radius:3px;display:block}
-ol.log .m{font-family:var(--mono);font-size:12px;color:var(--muted);overflow-wrap:anywhere}
-ol.log .t{font-weight:600}
-.empty{font-size:13px;color:var(--muted);border:1px dashed var(--line);border-radius:6px;padding:14px;text-align:center}
+ol.log li{display:grid;grid-template-columns:64px 1fr;gap:12px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:var(--radius-sm);padding:8px}
+ol.log img{width:64px;height:48px;object-fit:cover;border-radius:6px;display:block}
+ol.log .m{font-family:var(--mono);font-size:11.5px;color:var(--muted);overflow-wrap:anywhere}
+ol.log .t{font-weight:600;font-size:14px}
+.empty{font-size:13px;color:var(--muted);border:1px dashed var(--line);border-radius:var(--radius);padding:20px 16px;text-align:center;line-height:1.6}
 .confirm{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px}
-details{border-top:1px solid var(--line);padding-top:10px}
-summary{cursor:pointer;font-weight:600}
-details ul,details ol{padding-left:18px;margin:8px 0 0;color:var(--muted);font-size:13.5px;display:flex;flex-direction:column;gap:6px}
+
+/* ===== EXCLUDE COLORS ===== */
+.xchip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:2px 2px 2px 8px;font:500 12px var(--mono)}
+.xchip i{width:16px;height:16px;border-radius:50%;display:inline-block;border:1px solid var(--line)}
+.xchip button{background:none;border:0;color:var(--muted);font-size:18px;cursor:pointer;padding:0 8px;min-height:30px}
+
+/* ===== RUT CHART ===== */
 .chart{width:100%;height:auto;display:block}
 .chart .area{fill:var(--blaze);fill-opacity:.25;stroke:var(--blaze);stroke-width:2}
 .chart .grid{stroke:var(--line);stroke-width:1}
 .chart .today{stroke:var(--hit);stroke-width:2}
 .chart text{fill:var(--muted);font:500 10px var(--mono)}
 .chart .tl{fill:var(--hit)}
-.mapbox{position:relative;width:100%;max-width:100%;aspect-ratio:1/1;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--panel)}
+
+/* ===== MAP ===== */
+.mapbox{position:relative;width:100%;max-width:100%;aspect-ratio:1/1;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:var(--panel)}
 .mapbox canvas{width:100%;height:100%;display:block}
-.mapbox .mapempty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;color:var(--muted);font-size:13.5px}
-.status{border-radius:6px;padding:12px;border:1px solid var(--line);background:var(--panel)}
-.status.in{border-color:var(--hit)} .status.near{border-color:var(--warn)} .status.out{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,var(--panel))}
+.mapbox .mapempty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;color:var(--muted);font-size:13.5px;line-height:1.5}
+.status{border-radius:var(--radius);padding:14px 16px;border:1px solid var(--line);background:var(--card)}
+.status.in{border-color:var(--hit)} .status.near{border-color:var(--warn)} .status.out{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,var(--card))}
 .fields{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.xchip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:2px 2px 2px 6px;font:500 12px var(--mono)}
-.xchip i{width:16px;height:16px;border-radius:50%;display:inline-block;border:1px solid var(--line)}
-.xchip button{background:none;border:0;color:var(--muted);font-size:18px;cursor:pointer;padding:0 8px;min-height:30px}
-a.btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
-/* live map: essential Leaflet layout rules inline so the map still works if the stylesheet can't load */
+.row{display:flex;flex-wrap:wrap;gap:8px}
+a.btn{text-decoration:none}
+
+/* ===== LEAFLET INLINE ===== */
 .mapbox #lmap{position:absolute;inset:0}
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
 .leaflet-container{overflow:hidden;touch-action:none;-webkit-tap-highlight-color:transparent;background:var(--panel);font:12px var(--body)}
@@ -138,167 +231,230 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
 .leaflet-control-scale-line{border:2px solid var(--fg);border-top:0;color:var(--fg);font:500 10px var(--mono);padding:0 4px;background:rgba(0,0,0,.5)}
 .leaflet-attribution-flag{display:none!important}
 .spot-ic{background:var(--hit);color:#001214;border-radius:50%;font:700 11px/18px var(--mono);text-align:center;border:2px solid #001214;box-sizing:border-box}
-@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 
+<!-- ===== ONBOARDING ===== -->
+<div class="onboard" id="onboard" hidden>
+  <div class="ob-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg></div>
+  <h2>Blood <span>Trail</span> Finder</h2>
+  <p>Your phone becomes a blood-tracking tool. Point your camera at the ground and let color analysis find what your eyes miss.</p>
+  <div class="ob-features">
+    <div class="ob-feat">
+      <div class="ob-ic"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg></div>
+      <div><strong>Scan for blood</strong><small>Camera highlights blood in cyan, even dried sign that has turned brown</small></div>
+    </div>
+    <div class="ob-feat">
+      <div class="ob-ic"><svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg></div>
+      <div><strong>Hunt day info</strong><small>Sunrise, sunset, twilight, moon phase and rut forecast</small></div>
+    </div>
+    <div class="ob-feat">
+      <div class="ob-ic"><svg viewBox="0 0 24 24"><path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/></svg></div>
+      <div><strong>Property lines</strong><small>Set your boundary, see where you are, and get warned near the edge</small></div>
+    </div>
+  </div>
+  <button class="btn-start" id="obGo">Get started</button>
+  <button class="ob-skip" id="obSkip">I've used this before</button>
+</div>
+
+<!-- ===== MAIN APP ===== -->
 <div class="wrap">
-  <header>
-    <h1>Blood <span>Trail</span></h1>
-    <span class="src" id="srcTag">Sample scene</span>
-  </header>
 
-  <nav class="tabs" role="tablist">
-    <a href="#scan" data-tab="scan" role="tab" aria-selected="true">Scan</a>
-    <a href="#day" data-tab="day" role="tab" aria-selected="false">Hunt day</a>
-    <a href="#property" data-tab="property" role="tab" aria-selected="false">Property</a>
-  </nav>
+  <div class="app-head">
+    <div class="app-logo"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg></div>
+    <div class="app-title">
+      <h1>Blood <span>Trail</span></h1>
+      <div class="sub">Deer tracking tool</div>
+    </div>
+    <span class="src-badge" id="srcTag">Demo</span>
+  </div>
 
-  <!-- ================= SCAN ================= -->
+  <!-- ================= SCAN TAB ================= -->
   <section class="tab" id="tab-scan">
+
     <div class="vf" id="vf">
-      <canvas id="out" width="640" height="480" aria-label="Viewfinder with blood highlighted in cyan"></canvas>
+      <canvas id="out" width="640" height="480" aria-label="Viewfinder showing detected blood highlighted in cyan"></canvas>
       <div class="ret"></div>
-      <span class="tag" id="vfTag">Example, not your photo</span>
+      <span class="tag" id="vfTag">Demo scene — start your camera below</span>
       <span class="frz" id="frz" hidden>FROZEN · tap to resume</span>
     </div>
 
-    <div class="readout" aria-live="polite">
-      <div><small>Reading</small><span class="big v-none" id="verdict">—</span></div>
-      <div><small>Coverage</small><b id="cov">0.00%</b></div>
-      <div><small>Spots</small><b id="spots">0</b></div>
+    <div class="result-bar" aria-live="polite">
+      <div><span class="lab">Reading</span><span class="big v-none" id="verdict">—</span></div>
+      <div><span class="lab">Coverage</span><b id="cov">0.00%</b></div>
+      <div><span class="lab">Spots</span><b id="spots">0</b></div>
     </div>
     <p class="note" id="filtNote" hidden></p>
 
-    <div class="row">
-      <button class="btn primary" id="liveBtn">Start camera</button>
-      <button class="btn" id="photoBtn">Take photo</button>
-      <button class="btn" id="torchBtn" hidden>Light: off</button>
+    <div class="actions">
+      <button class="btn primary" id="liveBtn"><svg viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>Start camera</button>
+      <button class="btn" id="photoBtn"><svg viewBox="0 0 24 24"><path d="M12 12m-3.2 0a3.2 3.2 0 1 0 6.4 0 3.2 3.2 0 1 0-6.4 0M9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9z"/></svg>Take photo</button>
+      <button class="btn" id="torchBtn" hidden><svg viewBox="0 0 24 24"><path d="M9 21c0 .5.4 1 1 1h4c.6 0 1-.5 1-1v-1H9v1zm3-19C8.1 2 5 5.1 5 9c0 2.4 1.2 4.5 3 5.7V17c0 .5.4 1 1 1h6c.6 0 1-.5 1-1v-2.3c1.8-1.3 3-3.4 3-5.7 0-3.9-3.1-7-7-7z"/></svg>Light: off</button>
       <input type="file" id="photoIn" accept="image/*" capture="environment" hidden>
     </div>
     <p class="note" id="msg" hidden></p>
 
-    <div class="ctl">
-      <span class="lab">Blood type</span>
-      <div class="seg" id="modeSeg" role="group" aria-label="Blood type">
-        <button data-v="fresh" aria-pressed="false">Fresh</button>
-        <button data-v="both" aria-pressed="true">Both</button>
-        <button data-v="dried" aria-pressed="false">Dried</button>
+    <button class="btn mark full" id="markBtn" style="width:100%"><svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>Mark blood spot</button>
+
+    <!-- Settings -->
+    <div class="settings-group">
+      <div class="setting">
+        <div class="setting-head">
+          <svg viewBox="0 0 24 24"><path d="M7 14c-1.66 0-3-1.34-3-3 0-1.31.84-2.41 2-2.83V2h2v6.17C9.16 8.59 10 9.69 10 11c0 1.66-1.34 3-3 3zm0-4c-.55 0-1 .45-1 1s.45 1 1 1 1-.45 1-1-.45-1-1-1zM17 8c-1.66 0-3 1.34-3 3 0 1.31.84 2.41 2 2.83V22h2v-8.17c1.16-.42 2-1.52 2-2.83 0-1.66-1.34-3-3-3zm0 4c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z"/></svg>
+          <span class="lab">Blood type</span>
+          <button class="info-btn" onclick="toggleTip(this)" aria-expanded="false" aria-label="What does this mean?"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg></button>
+        </div>
+        <div class="seg" id="modeSeg" role="group" aria-label="Blood type">
+          <button data-v="fresh" aria-pressed="false">Fresh</button>
+          <button data-v="both" aria-pressed="true">Both</button>
+          <button data-v="dried" aria-pressed="false">Dried</button>
+        </div>
+        <div class="tip" hidden><b>Fresh</b> looks for bright red blood — a recent hit. <b>Dried</b> picks up sign that has turned dark brown after a few hours. <b>Both</b> catches everything.</div>
+      </div>
+
+      <div class="setting">
+        <div class="setting-head">
+          <svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+          <span class="lab">View mode</span>
+          <button class="info-btn" onclick="toggleTip(this)" aria-expanded="false" aria-label="What does this mean?"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg></button>
+        </div>
+        <div class="seg" id="viewSeg" role="group" aria-label="View mode">
+          <button data-v="overlay" aria-pressed="true">Overlay</button>
+          <button data-v="isolate" aria-pressed="false">Isolate</button>
+          <button data-v="raw" aria-pressed="false">Raw</button>
+        </div>
+        <div class="tip" hidden><b>Overlay</b> highlights blood in cyan on top of your camera view. <b>Isolate</b> grays out everything except blood. <b>Raw</b> shows the unprocessed image so you can compare.</div>
+      </div>
+
+      <div class="setting">
+        <div class="setting-head">
+          <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+          <span class="lab">Sensitivity <span id="sensVal" style="font-family:var(--mono);color:var(--blaze)">50</span></span>
+        </div>
+        <input type="range" id="sens" min="0" max="100" value="50">
+        <p class="note">Raise this in low light or for faint sign. Lower it to reduce false hits.</p>
+      </div>
+
+      <div class="setting">
+        <div class="setting-head">
+          <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+          <span class="lab">Filter out look-alikes</span>
+          <button class="info-btn" onclick="toggleTip(this)" aria-expanded="false" aria-label="What does this mean?"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg></button>
+        </div>
+        <div class="seg" id="filtSeg" role="group" aria-label="Filter look-alikes">
+          <button data-v="leaf" aria-pressed="true">Leaves</button>
+          <button data-v="berry" aria-pressed="true">Berries</button>
+          <button data-v="orange" aria-pressed="true">Orange</button>
+        </div>
+        <div class="tip" hidden>The woods are full of red things that aren't blood. These filters use shape and color rules to ignore common false positives:
+          <ul>
+            <li><b>Leaves</b> — large, flat red patches like maple or sumac</li>
+            <li><b>Berries</b> — small round clusters of similar-sized dots</li>
+            <li><b>Orange</b> — bright orange tones like autumn foliage</li>
+          </ul>
+          Filtered items show with a <b style="color:var(--warn)">yellow dashed outline</b> so you can double-check.
+        </div>
+      </div>
+
+      <div class="setting">
+        <div class="setting-head">
+          <svg viewBox="0 0 24 24"><path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+          <span class="lab">Exclude a color</span>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn sm" id="exclBtn"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>Tap to pick</button>
+          <span class="note" style="flex:1 1 140px">Tap a cyan area you know isn't blood. That exact color gets ignored.</span>
+        </div>
+        <div class="row" id="exclList" hidden></div>
       </div>
     </div>
-    <div class="ctl">
-      <span class="lab">View</span>
-      <div class="seg" id="viewSeg" role="group" aria-label="View">
-        <button data-v="overlay" aria-pressed="true">Overlay</button>
-        <button data-v="isolate" aria-pressed="false">Isolate</button>
-        <button data-v="raw" aria-pressed="false">Raw</button>
-      </div>
-    </div>
-    <div class="ctl">
-      <label class="lab" for="sens">Sensitivity <span id="sensVal" style="font-family:var(--mono)">50</span></label>
-      <input type="range" id="sens" min="0" max="100" value="50">
-    </div>
 
-    <div class="ctl">
-      <span class="lab">Ignore look-alikes</span>
-      <div class="seg" id="filtSeg" role="group" aria-label="Ignore look-alikes">
-        <button data-v="leaf" aria-pressed="true">Red leaves</button>
-        <button data-v="berry" aria-pressed="true">Berries</button>
-        <button data-v="orange" aria-pressed="true">Orange tones</button>
-      </div>
-    </div>
-    <div class="card" style="gap:8px">
-      <div class="row" style="align-items:center"><button class="btn sm" id="exclBtn">Exclude a color</button><span class="note" style="flex:1 1 180px">Tap something flagged that you know isn't blood, like a sumac leaf. That color is ignored from then on.</span></div>
-      <div class="row" id="exclList" hidden></div>
-    </div>
-
-    <button class="btn mark" id="markBtn">Mark blood spot</button>
-
+    <!-- Trail log -->
     <section>
-      <h2>Trail log <button id="clearBtn">Clear</button></h2>
+      <h2 class="section"><svg viewBox="0 0 24 24" style="width:20px;height:20px;fill:var(--hit)"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg> Trail log <span class="right"><button id="clearBtn">Clear</button></span></h2>
       <div class="confirm" id="confirm" hidden>Clear every marked spot? <button class="btn sm" id="yesClear">Clear</button><button class="btn sm" id="noClear">Keep</button></div>
       <ol class="log" id="log"></ol>
-      <div class="empty" id="empty">No spots marked yet. Point at sign and tap <b>Mark blood spot</b> to log it with a snapshot and GPS point.</div>
+      <div class="empty" id="empty">No spots marked yet. Point your camera at blood sign and tap <b>Mark blood spot</b> to log it with a snapshot and GPS location.</div>
     </section>
 
-    <details>
-      <summary>Tracking tips</summary>
-      <ul>
-        <li>Cyan means the color matches blood. Red sumac, dogwood and maple leaves can also light up, so check what's highlighted.</li>
-        <li>Bright red blood with bubbles points to a lung hit. Dark red can mean liver. Green or brown flecks mean a gut shot, so back out and wait.</li>
-        <li>Use <b>Dried</b> for sign that's turned brown after a few hours, and raise sensitivity in low light.</li>
-        <li>Tap the viewfinder to freeze a frame and look closer.</li>
-        <li>Check the undersides of leaves and grass about knee to waist high.</li>
+    <!-- Tips -->
+    <div class="card">
+      <h3><svg viewBox="0 0 24 24" style="width:18px;height:18px;fill:var(--warn)"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg> Tracking tips</h3>
+      <ul style="padding-left:18px;margin:0;color:var(--muted);font-size:13.5px;display:flex;flex-direction:column;gap:6px">
+        <li><b style="color:var(--hit)">Cyan highlights</b> mean the color matches blood. Red sumac, dogwood and maple leaves can also trigger it — check what's highlighted before you mark it.</li>
+        <li><b style="color:var(--fg)">Bright red with bubbles</b> → lung hit. <b style="color:var(--fg)">Dark red</b> → liver. <b style="color:var(--fg)">Green or brown flecks</b> → gut shot — back out and wait at least 6 hours.</li>
+        <li>Use <b style="color:var(--fg)">Dried mode</b> for sign that has turned brown. Raise sensitivity in low light.</li>
+        <li>Tap the viewfinder to <b style="color:var(--fg)">freeze</b> a frame and look closer.</li>
+        <li>Check the <b style="color:var(--fg)">undersides of leaves</b> and grass from knee to waist height.</li>
       </ul>
-    </details>
+    </div>
   </section>
 
-  <!-- ================= HUNT DAY ================= -->
+  <!-- ================= HUNT DAY TAB ================= -->
   <section class="tab" id="tab-day" hidden>
     <div class="row" style="align-items:end">
-      <div class="ctl" style="flex:1 1 180px"><label class="lab" for="dayDate">Date</label><input type="date" id="dayDate"></div>
+      <div style="flex:1 1 180px;display:flex;flex-direction:column;gap:4px"><label class="lab" for="dayDate" style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-family:var(--mono)">Date</label><input type="date" id="dayDate"></div>
       <button class="btn sm" id="todayBtn" style="min-height:44px">Today</button>
     </div>
 
     <div class="card">
-      <h3>Location <span class="chip" id="locChip" hidden>Example</span></h3>
+      <h3><svg viewBox="0 0 24 24" style="width:18px;height:18px;fill:var(--blaze)"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg> Your location <span class="right"><span class="chip muted" id="locChip" hidden>Demo</span><button class="info-btn" onclick="toggleTip(this)" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg></button></span></h3>
       <div class="kv"><b id="locText">—</b><span class="note" id="locNote"></span></div>
-      <div class="row">
-        <button class="btn sm" id="gpsLocBtn">Use my location</button>
-        <button class="btn sm" id="editLocBtn">Enter coordinates</button>
+      <div class="actions">
+        <button class="btn sm" id="gpsLocBtn"><svg viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0013 3.06V1h-2v2.06A8.994 8.994 0 003.06 11H1v2h2.06A8.994 8.994 0 0011 20.94V23h2v-2.06A8.994 8.994 0 0020.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>Use GPS</button>
+        <button class="btn sm" id="editLocBtn"><svg viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>Enter manually</button>
       </div>
       <div id="locForm" hidden>
         <div class="fields">
-          <div class="ctl"><label class="lab" for="latIn">Latitude</label><input type="number" id="latIn" step="any" inputmode="decimal" placeholder="38.95"></div>
-          <div class="ctl"><label class="lab" for="lonIn">Longitude</label><input type="number" id="lonIn" step="any" inputmode="decimal" placeholder="-92.33"></div>
+          <div style="display:flex;flex-direction:column;gap:4px"><label class="lab" for="latIn" style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-family:var(--mono)">Latitude</label><input type="number" id="latIn" step="any" inputmode="decimal" placeholder="38.95"></div>
+          <div style="display:flex;flex-direction:column;gap:4px"><label class="lab" for="lonIn" style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-family:var(--mono)">Longitude</label><input type="number" id="lonIn" step="any" inputmode="decimal" placeholder="-92.33"></div>
         </div>
-        <div class="row" style="margin-top:8px"><button class="btn sm primary" id="saveLocBtn">Save location</button><button class="btn sm" id="cancelLocBtn">Cancel</button></div>
-        <p class="note" style="margin-top:6px">Tip: long-press your spot in Google Maps to copy its coordinates. West longitudes are negative.</p>
+        <div class="row" style="margin-top:8px"><button class="btn sm primary" id="saveLocBtn">Save</button><button class="btn sm" id="cancelLocBtn">Cancel</button></div>
       </div>
       <p class="note err" id="locMsg" hidden></p>
+      <div class="tip" hidden>Your location is needed for accurate sunrise/sunset times. <b>Use GPS</b> grabs your phone's position automatically. Or long-press your spot in Google Maps to copy coordinates and enter them here. West longitudes are negative (e.g. -92.33).</div>
     </div>
 
     <div class="card">
-      <h3>Sun &amp; light <span class="count" id="countdown"></span></h3>
+      <h3><svg viewBox="0 0 24 24" style="width:18px;height:18px;fill:var(--warn)"><path d="M6.76 4.84l-1.8-1.79-1.41 1.41 1.79 1.79 1.42-1.41zM4 10.5H1v2h3v-2zm9-9.95h-2V3.5h2V.55zm7.45 3.91l-1.41-1.41-1.79 1.79 1.41 1.41 1.79-1.79zm-3.21 13.7l1.79 1.8 1.41-1.41-1.8-1.79-1.4 1.4zM20 10.5v2h3v-2h-3zm-8-5c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm-1 16.95h2V19.5h-2v2.95zm-7.45-3.91l1.41 1.41 1.79-1.8-1.41-1.41-1.79 1.8z"/></svg> Sun &amp; light <span class="right"><span class="count" id="countdown"></span><button class="info-btn" onclick="toggleTip(this)" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg></button></span></h3>
       <div class="grid2">
         <div class="kv"><span class="lab">Sunrise</span><b id="sRise">—</b></div>
         <div class="kv"><span class="lab">Sunset</span><b id="sSet">—</b></div>
-        <div class="kv"><span class="lab">Legal start</span><b id="lStart">—</b></div>
-        <div class="kv"><span class="lab">Legal end</span><b id="lEnd">—</b></div>
         <div class="kv"><span class="lab">First light</span><b id="cDawn">—</b></div>
         <div class="kv"><span class="lab">Dark</span><b id="cDusk">—</b></div>
         <div class="kv"><span class="lab">Daylight</span><b id="dayLen">—</b></div>
         <div class="kv"><span class="lab">Moon</span><b id="moonTxt">—</b></div>
       </div>
-      <p class="note">Legal light shown as 30 min before sunrise to 30 min after sunset, the Missouri rule. Check your state's regulations. First light and dark are civil twilight. Times use your phone's time zone.</p>
+      <div class="tip" hidden><b>Sunrise</b> and <b>sunset</b> are calculated from your GPS coordinates using the NOAA solar algorithm — accurate to within a minute. <b>First light</b> and <b>dark</b> are civil twilight (sun 6° below the horizon). All times use your phone's time zone. <b>Check your state's regulations</b> for legal shooting hours — these vary by state. Moon phase affects deer movement — a bright full moon often means more nighttime feeding and slower mornings.</div>
     </div>
 
     <div class="card">
-      <h3>Rut forecast <span class="chip" style="color:var(--muted);border-color:var(--line)">Estimate</span></h3>
-      <div class="readout two">
-        <div><small>Phase</small><span class="big" id="rutPhase">—</span></div>
-        <div><small>Rut activity</small><b id="rutPct">—</b></div>
-        <div class="wide"><small>What deer are doing</small><span id="rutDesc" style="font-size:14px">—</span></div>
+      <h3><svg viewBox="0 0 24 24" style="width:18px;height:18px;fill:var(--blaze)"><path d="M18.6 6.62c-1.44 0-2.8.56-3.77 1.53L12 10.66 10.48 12h.01L7.8 14.39c-.64.64-1.49.99-2.4.99-1.87 0-3.39-1.51-3.39-3.38S3.53 8.62 5.4 8.62c.91 0 1.76.35 2.44 1.03l1.13 1 1.51-1.34L9.22 8.2C8.2 7.18 6.84 6.62 5.4 6.62 2.42 6.62 0 9.04 0 12s2.42 5.38 5.4 5.38c1.44 0 2.8-.56 3.77-1.53l2.83-2.5.01.01L13.52 12h-.01l2.69-2.39c.64-.64 1.49-.99 2.4-.99 1.87 0 3.39 1.51 3.39 3.38s-1.52 3.38-3.39 3.38c-.9 0-1.76-.35-2.44-1.03l-1.14-1.01-1.51 1.34 1.27 1.12c1.02 1.01 2.37 1.57 3.82 1.57 2.98 0 5.4-2.41 5.4-5.38s-2.42-5.37-5.4-5.37z"/></svg> Rut forecast <span class="right"><span class="chip muted">Estimate</span><button class="info-btn" onclick="toggleTip(this)" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg></button></span></h3>
+      <div class="result-bar two">
+        <div><span class="lab">Phase</span><span class="big" id="rutPhase">—</span></div>
+        <div><span class="lab">Activity</span><b id="rutPct">—</b></div>
+        <div class="wide"><span class="lab">What deer are doing</span><span id="rutDesc" style="font-size:14px">—</span></div>
       </div>
-      <svg class="chart" id="rutChart" viewBox="0 0 340 110" role="img" aria-label="Rut activity curve around peak breeding"></svg>
+      <svg class="chart" id="rutChart" viewBox="0 0 340 110" role="img" aria-label="Rut activity curve around peak breeding date"></svg>
       <div class="row" style="align-items:end">
-        <div class="ctl" style="flex:1 1 180px"><label class="lab" for="peakIn">Peak breeding date</label><input type="date" id="peakIn"></div>
+        <div style="flex:1 1 180px;display:flex;flex-direction:column;gap:4px"><label class="lab" for="peakIn" style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-family:var(--mono)">Peak breeding date</label><input type="date" id="peakIn"></div>
         <span class="note" id="peakNote" style="flex:1 1 160px"></span>
       </div>
-      <p class="note">This is a rough model built around one peak date, not a guarantee. The Missouri Department of Conservation puts peak breeding around mid-November in most of the state. Southern states can run weeks or months different, so set your local peak.</p>
+      <div class="tip" hidden>This is a rough model, not a guarantee. It estimates deer activity around one peak breeding date. <b>Missouri</b> typically peaks around <b>Nov 15</b>. Southern states can run weeks different, so set your local peak date. The <b>activity chart</b> shows the rut curve — the vertical cyan line is your selected date. <b>Seeking</b> and <b>chasing</b> phases are usually the best time to hunt.</div>
     </div>
   </section>
 
-  <!-- ================= PROPERTY ================= -->
+  <!-- ================= PROPERTY TAB ================= -->
   <section class="tab" id="tab-property" hidden>
     <div class="status" id="propStatus" aria-live="polite">
-      <div class="big v-none" id="propState">No boundary yet</div>
-      <div class="note" id="propDetail">Walk your lines or import a boundary file below.</div>
+      <div class="big v-none" id="propState">No boundary set</div>
+      <div class="note" id="propDetail">Walk your property lines or import a boundary file to get started.</div>
     </div>
 
     <div class="mapbox">
-      <canvas id="map" aria-label="Property boundary map with your position and marked blood spots"></canvas>
-      <div id="lmap" hidden aria-label="Live map with your position, property boundary and blood spots"></div>
-      <div class="mapempty" id="mapEmpty">Your boundary, your position and every GPS-tagged blood spot will show here.</div>
+      <canvas id="map" aria-label="Property boundary map"></canvas>
+      <div id="lmap" hidden aria-label="Live map with position, boundary and blood spots"></div>
+      <div class="mapempty" id="mapEmpty">Your boundary, your position, and every GPS-tagged blood spot will appear here once you set up a boundary or start tracking.</div>
     </div>
     <div class="seg" id="layerSeg" role="group" aria-label="Map type" hidden>
       <button data-v="sat" aria-pressed="true">Satellite</button>
@@ -306,25 +462,25 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
       <button data-v="street" aria-pressed="false">Street</button>
       <button data-v="plain" aria-pressed="false">Plain</button>
     </div>
-    <div class="row">
-      <button class="btn sm" id="centerBtn">Center on me</button>
-      <button class="btn sm" id="fitBtn">Show all</button>
-      <a class="btn sm" id="gmapsLink" href="https://www.google.com/maps" target="_blank" rel="noopener">Open in Google Maps</a>
+    <div class="actions three">
+      <button class="btn sm" id="centerBtn"><svg viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0013 3.06V1h-2v2.06A8.994 8.994 0 003.06 11H1v2h2.06A8.994 8.994 0 0011 20.94V23h2v-2.06A8.994 8.994 0 0020.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>Center</button>
+      <button class="btn sm" id="fitBtn"><svg viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M15 3l2.3 2.3-2.89 2.87 1.42 1.42L18.7 6.7 21 9V3h-6zM3 9l2.3-2.3 2.87 2.89 1.42-1.42L6.7 5.3 9 3H3v6zm6 12l-2.3-2.3 2.89-2.87-1.42-1.42L5.3 17.3 3 15v6h6zm12-6l-2.3 2.3-2.87-2.89-1.42 1.42 2.89 2.87L15 21h6v-6z"/></svg>Show all</button>
+      <a class="btn sm" id="gmapsLink" href="https://www.google.com/maps" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>Google Maps</a>
     </div>
     <p class="note err" id="mapNote" hidden></p>
 
-    <div class="readout">
-      <div><small>Acres</small><b id="pAcres">—</b></div>
-      <div><small>Spots w/ GPS</small><b id="pSpots">0</b></div>
-      <div><small>Trail length</small><b id="pTrail">—</b></div>
+    <div class="result-bar">
+      <div><span class="lab">Acres</span><b id="pAcres">—</b></div>
+      <div><span class="lab">GPS spots</span><b id="pSpots">0</b></div>
+      <div><span class="lab">Trail</span><b id="pTrail">—</b></div>
     </div>
 
-    <button class="btn" id="trackBtn">Track my GPS: off</button>
+    <button class="btn on full" id="trackBtn" style="width:100%"><svg viewBox="0 0 24 24" style="width:18px;height:18px"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0013 3.06V1h-2v2.06A8.994 8.994 0 003.06 11H1v2h2.06A8.994 8.994 0 0011 20.94V23h2v-2.06A8.994 8.994 0 0020.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>Track my GPS: off</button>
     <p class="note err" id="propMsg" hidden></p>
 
     <div class="card">
-      <h3>Walk the line</h3>
-      <p class="note" id="walkNote">Stand on each corner pin and drop a point. Three or more corners make a boundary.</p>
+      <h3><svg viewBox="0 0 24 24" style="width:18px;height:18px;fill:var(--warn)"><path d="M21 3L3 10.53v.98l6.84 2.65L12.48 21h.98L21 3z"/></svg> Walk the line <span class="right"><button class="info-btn" onclick="toggleTip(this)" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg></button></span></h3>
+      <p class="note" id="walkNote">Stand on each corner pin of your property and drop a point. Three or more corners make a boundary.</p>
       <div class="row">
         <button class="btn sm" id="walkStart">Start new boundary</button>
         <button class="btn sm" id="walkDrop" hidden>Drop corner here</button>
@@ -332,34 +488,57 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
         <button class="btn sm primary" id="walkDone" hidden>Finish</button>
         <button class="btn sm" id="walkCancel" hidden>Cancel</button>
       </div>
+      <div class="tip" hidden>Walk to each corner of your property with GPS on. At each corner, tap <b>Drop corner here</b> to record that point. After 3+ corners, tap <b>Finish</b> to close the boundary. Phone GPS is usually accurate to 5–15 yards under trees, so treat anything near the line as "on the line."</div>
     </div>
 
     <div class="card">
-      <h3>Import boundary</h3>
-      <p class="note">Load a KML, GPX or GeoJSON file of your property lines. It replaces the current boundary.</p>
+      <h3><svg viewBox="0 0 24 24" style="width:18px;height:18px;fill:var(--muted)"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg> Import boundary <span class="right"><button class="info-btn" onclick="toggleTip(this)" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg></button></span></h3>
+      <p class="note">Load a KML, GPX or GeoJSON file of your property boundary.</p>
       <div class="row">
-        <button class="btn sm" id="importBtn">Choose file</button>
+        <button class="btn sm" id="importBtn"><svg viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/></svg>Choose file</button>
         <button class="btn sm" id="clearBound">Clear boundary</button>
         <input type="file" id="importIn" accept=".kml,.gpx,.geojson,.json,application/vnd.google-earth.kml+xml,application/gpx+xml,application/geo+json,application/json" hidden>
       </div>
       <div class="confirm" id="confirmBound" hidden>Remove the saved boundary? <button class="btn sm" id="yesBound">Remove</button><button class="btn sm" id="noBound">Keep</button></div>
+      <div class="tip" hidden>
+        <b>How to get your property lines:</b>
+        <ol>
+          <li>Open <b>Google Earth</b> (web or desktop) and find your land</li>
+          <li>Use <b>Add path or polygon</b> and click around your lines — most county parcel viewers show the boundaries so you can trace them</li>
+          <li>Save as a <b>KML</b> file, then import it here</li>
+        </ol>
+        <b>Never cross onto a neighbor's land</b> to recover a deer without their permission.
+      </div>
     </div>
-
-    <details>
-      <summary>Getting your property lines</summary>
-      <ol>
-        <li>Open Google Earth (web or desktop) and find your land.</li>
-        <li>Use <b>Add path or polygon</b> and click around your lines. Most county parcel viewers show the lines so you can trace them.</li>
-        <li>Save or export the shape as a <b>KML</b> file, then import it here.</li>
-        <li>Phone GPS is usually accurate to about 5–15 yards under trees, so treat anything close to the line as "on the line."</li>
-        <li>Never cross onto a neighbor's land to recover a deer without their permission.</li>
-      </ol>
-    </details>
   </section>
+
 </div>
+
+<!-- ===== BOTTOM TAB BAR ===== -->
+<nav class="tab-bar" role="tablist">
+  <a href="#scan" data-tab="scan" role="tab" aria-selected="true">
+    <svg viewBox="0 0 24 24"><path d="M9.5 6.5v3h-3v-3h3M11 5H5v6h6V5zm-1.5 9.5v3h-3v-3h3M11 13H5v6h6v-6zm6.5-6.5v3h-3v-3h3M19 5h-6v6h6V5zm-6 8h1.5v1.5H13V13zm1.5 1.5H16V16h-1.5v-1.5zM16 13h1.5v1.5H16V13zm-3 3h1.5v1.5H13V16zm1.5 1.5H16V19h-1.5v-1.5zM16 16h1.5v1.5H16V16zm1.5-1.5H19V16h-1.5v-1.5zm0 3H19V19h-1.5v-1.5zM22 7h-2V4h-3V2h5v5zm0 15v-5h-2v3h-3v2h5zM2 22h5v-2H4v-3H2v5zM2 2v5h2V4h3V2H2z"/></svg>
+    Scan
+  </a>
+  <a href="#day" data-tab="day" role="tab" aria-selected="false">
+    <svg viewBox="0 0 24 24"><path d="M6.76 4.84l-1.8-1.79-1.41 1.41 1.79 1.79 1.42-1.41zM4 10.5H1v2h3v-2zm9-9.95h-2V3.5h2V.55zm7.45 3.91l-1.41-1.41-1.79 1.79 1.41 1.41 1.79-1.79zm-3.21 13.7l1.79 1.8 1.41-1.41-1.8-1.79-1.4 1.4zM20 10.5v2h3v-2h-3zm-8-5c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm-1 16.95h2V19.5h-2v2.95zm-7.45-3.91l1.41 1.41 1.79-1.8-1.41-1.41-1.79 1.8z"/></svg>
+    Hunt day
+  </a>
+  <a href="#property" data-tab="property" role="tab" aria-selected="false">
+    <svg viewBox="0 0 24 24"><path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/></svg>
+    Property
+  </a>
+</nav>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 <script>
+// Info tip toggle (global helper)
+function toggleTip(btn){
+  const tip=btn.closest('.card,.setting,h3').querySelector('.tip')||btn.parentElement.parentElement.querySelector('.tip');
+  if(!tip) return;
+  const show=tip.hidden; tip.hidden=!show; btn.setAttribute('aria-expanded',show);
+}
+
 (function(){
   const $=id=>document.getElementById(id);
   const DAY=864e5;
@@ -367,25 +546,32 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
   const fmtT=t=>t?t.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}):'—';
   const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 
+  // ================= ONBOARDING =================
+  if(!store.get('bloodtrail.seen',false)){
+    $('onboard').hidden=false;
+  }
+  $('obGo').onclick=$('obSkip').onclick=()=>{store.set('bloodtrail.seen',true); $('onboard').hidden=true};
+
   // ================= GPS =================
   let lastPos=null;
   function getPos(timeout){return new Promise((res,rej)=>{
     if(!navigator.geolocation) return rej({code:9});
     try{navigator.geolocation.getCurrentPosition(p=>{lastPos={lat:p.coords.latitude,lon:p.coords.longitude,acc:p.coords.accuracy,t:Date.now()};res(lastPos)},rej,{enableHighAccuracy:true,timeout:timeout||10000,maximumAge:5000})}catch(e){rej({code:9})}
   })}
-  function gpsErr(e){ return e&&e.code===1 ? 'Location is blocked here. Open the app from your GitHub link in Chrome or Safari and allow location, or enter coordinates.'
-    : e&&e.code===3 ? 'GPS took too long to answer. Step into the open and try again.'
-    : 'GPS is not available here. Open the app from your GitHub link in Chrome or Safari.'; }
+  function gpsErr(e){ return e&&e.code===1 ? 'Location is blocked. Open the app from your GitHub link in Chrome or Safari and allow location when asked.'
+    : e&&e.code===3 ? 'GPS took too long. Step into the open and try again.'
+    : 'GPS is not available here. Open from your GitHub link in Chrome or Safari.'; }
   function hav(a,b){const R=6371000,r=Math.PI/180,dLa=(b.lat-a.lat)*r,dLo=(b.lon-a.lon)*r;const h=Math.sin(dLa/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dLo/2)**2;return 2*R*Math.asin(Math.sqrt(h))}
   const YD=1.09361;
 
   // ================= TABS =================
   const TABS=['scan','day','property'];
   function showTab(t){ if(!TABS.includes(t)) t='scan';
-    TABS.forEach(n=>{ $('tab-'+n).hidden=n!==t; document.querySelector('[data-tab="'+n+'"]').setAttribute('aria-selected',n===t); });
+    TABS.forEach(n=>{ $('tab-'+n).hidden=n!==t;
+      document.querySelectorAll('[data-tab="'+n+'"]').forEach(a=>a.setAttribute('aria-selected',n===t)); });
     if(t==='day') renderDay(); if(t==='property'){ renderProperty(); if(lmap) setTimeout(()=>lmap.invalidateSize(),0); } }
   window.addEventListener('hashchange',()=>showTab(location.hash.slice(1)));
-  document.querySelectorAll('nav.tabs a').forEach(a=>a.addEventListener('click',e=>{ e.preventDefault(); const t=a.dataset.tab; try{ if(location.hash!=='#'+t) location.hash=t; }catch(_){} showTab(t); }));
+  document.querySelectorAll('[data-tab]').forEach(a=>a.addEventListener('click',e=>{ e.preventDefault(); const t=a.dataset.tab; try{ if(location.hash!=='#'+t) location.hash=t; }catch(_){} showTab(t); }));
 
   // ================= SCAN =================
   const out=$('out'), ctx=out.getContext('2d',{willReadFrequently:true});
@@ -406,7 +592,6 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
     [[190,170,11],[250,215,7],[300,250,13],[360,300,6],[420,330,9]].forEach(([x,y,r])=>{g.fillStyle='hsl(355,85%,32%)'; g.beginPath(); g.arc(x,y,r,0,7); g.fill();
       for(let k=0;k<6;k++){g.beginPath(); g.arc(x+rnd(-r*2.2,r*2.2),y+rnd(-r*2.2,r*2.2),rnd(1,2.6),0,7); g.fill()}
       g.fillStyle='hsla(355,70%,55%,.7)'; g.beginPath(); g.arc(x-r*.3,y-r*.3,r*.25,0,7); g.fill()});
-    // false positives the filters should catch: a red leaf, a berry cluster, an orange leaf
     g.save(); g.translate(530,385); g.rotate(-.4); g.fillStyle='hsl(356,72%,36%)'; g.beginPath();
     for(let k=0;k<10;k++){const a=k/10*Math.PI*2, rr=k%2?40:60; g.lineTo(Math.cos(a)*rr,Math.sin(a)*rr*.9)} g.closePath(); g.fill(); g.restore();
     [[95,95],[111,90],[103,108],[120,105],[88,111]].forEach(([x,y])=>{g.fillStyle='hsl(352,88%,40%)'; g.beginPath(); g.arc(x,y,7,0,7); g.fill(); g.fillStyle='hsla(0,0%,100%,.8)'; g.beginPath(); g.arc(x-2,y-2,1.6,0,7); g.fill();});
@@ -429,7 +614,6 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
   function hsv(r,g,b){const max=Math.max(r,g,b),min=Math.min(r,g,b),d=max-min;let h=0;if(d){if(max===r)h=((g-b)/d)%6;else if(max===g)h=(b-r)/d+2;else h=(r-g)/d+4;h*=60;if(h<0)h+=360}return [h,max?d/max:0,max/255]}
   function excluded(h,s,v){ for(const e of excl){ let dh=Math.abs(h-e.h); if(dh>180) dh=360-dh; if(dh<8&&Math.abs(s-e.s)<.15&&Math.abs(v-e.v)<.15) return true; } return false; }
 
-  // Detect red pixels, split them into separate blobs, then drop blobs whose shape or tone says leaf, berry or foliage.
   function analyze(){
     const W=work.width,H=work.height,N=W*H, img=wctx.getImageData(0,0,W,H), p=img.data;
     const mask=new Uint8Array(N);
@@ -458,7 +642,6 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
         for(const o of round){ if(o===b) continue; const q=o.a/b.a; if(q<0.5||q>2) continue; if(Math.hypot(o.cx-b.cx,o.cy-b.cy)<r*5) n++; }
         if(n>=2) b.berry=1; }
       for(const b of round) if(b.berry) b.why='berry';
-      // touching berries merge into one blob: absorb compact blobs sitting inside a known cluster
       const ber=round.filter(b=>b.berry);
       if(ber.length){ const mA=ber.reduce((s,b)=>s+b.a,0)/ber.length, mr=Math.sqrt(mA/Math.PI);
         for(const b of blobs){ if(b.why||b.a<mA*0.5||b.a>mA*4.5||b.fill<0.45) continue;
@@ -495,7 +678,7 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
       ctx.setLineDash([]);
     } else { for(const b of blobs) if(b.why&&b.why!=='noise') ign[b.why]++; }
     const parts=[]; if(ign.leaf) parts.push(ign.leaf+' leaf'+(ign.leaf>1?'-sized patches':'-sized patch')); if(ign.berry) parts.push(ign.berry+' berr'+(ign.berry>1?'ies':'y')); if(ign.orange) parts.push(ign.orange+' orange patch'+(ign.orange>1?'es':''));
-    $('filtNote').hidden=!parts.length; $('filtNote').textContent='Ignored (yellow outlines): '+parts.join(' · ');
+    $('filtNote').hidden=!parts.length; $('filtNote').textContent='Filtered out (yellow outlines): '+parts.join(' · ');
     const cov=hits/N*100, big=boxes.filter(b=>b.n>=2).length;
     let v='none'; if(big>=1||cov>0.3) v='strong'; else if(boxes.length) v='maybe';
     lastResult={cov,spots:boxes.length,v};
@@ -514,13 +697,13 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
   }
   async function startLive(){
     if(stream){stopLive();return}
-    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){msg('Live camera is not available here. Use Take photo instead.',true);return}
+    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){msg('Live camera not available here. Use Take photo instead, or open from your GitHub link.',true);return}
     try{ stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280}},audio:false}); }
-    catch(e){stream=null; msg('Live camera was blocked here. Tap Take photo, or open the app from your GitHub link to use live mode.',true); return}
+    catch(e){stream=null; msg('Camera was blocked. Tap Take photo, or open from your GitHub link and allow camera access.',true); return}
     video=document.createElement('video'); video.playsInline=true; video.muted=true; video.srcObject=stream; await video.play().catch(()=>{});
     source='live'; frozen=false; $('frz').hidden=true; msg('');
-    $('srcTag').textContent='Live'; $('srcTag').className='src live'; $('vfTag').textContent='Live camera · tap to freeze';
-    $('liveBtn').textContent='Stop camera';
+    $('srcTag').textContent='Live'; $('srcTag').className='src-badge live'; $('vfTag').textContent='Live — tap to freeze';
+    $('liveBtn').innerHTML='<svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>Stop camera';
     const track=stream.getVideoTracks()[0], caps=track.getCapabilities?track.getCapabilities():{};
     $('torchBtn').hidden=!caps.torch;
     try{ navigator.wakeLock&&navigator.wakeLock.request('screen').catch(()=>{}) }catch(e){}
@@ -528,27 +711,28 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
   }
   function stopLive(){
     cancelAnimationFrame(raf); if(stream) stream.getTracks().forEach(t=>t.stop()); stream=null; video=null; torch=false;
-    $('torchBtn').hidden=true; $('torchBtn').textContent='Light: off'; $('liveBtn').textContent='Start camera';
-    $('srcTag').textContent='Paused'; $('srcTag').className='src'; $('vfTag').textContent='Last frame'; $('frz').hidden=true;
+    $('torchBtn').hidden=true; $('torchBtn').innerHTML='<svg viewBox="0 0 24 24"><path d="M9 21c0 .5.4 1 1 1h4c.6 0 1-.5 1-1v-1H9v1zm3-19C8.1 2 5 5.1 5 9c0 2.4 1.2 4.5 3 5.7V17c0 .5.4 1 1 1h6c.6 0 1-.5 1-1v-2.3c1.8-1.3 3-3.4 3-5.7 0-3.9-3.1-7-7-7z"/></svg>Light: off';
+    $('liveBtn').innerHTML='<svg viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>Start camera';
+    $('srcTag').textContent='Paused'; $('srcTag').className='src-badge'; $('vfTag').textContent='Last frame'; $('frz').hidden=true;
     source='frame';
   }
   $('liveBtn').onclick=startLive;
   $('torchBtn').onclick=async()=>{ if(!stream) return; torch=!torch;
-    try{ await stream.getVideoTracks()[0].applyConstraints({advanced:[{torch}]}); $('torchBtn').textContent='Light: '+(torch?'on':'off'); }
-    catch(e){ torch=false; msg('This phone would not turn on the light from the browser.',true) } };
+    try{ await stream.getVideoTracks()[0].applyConstraints({advanced:[{torch}]}); $('torchBtn').innerHTML='<svg viewBox="0 0 24 24"><path d="M9 21c0 .5.4 1 1 1h4c.6 0 1-.5 1-1v-1H9v1zm3-19C8.1 2 5 5.1 5 9c0 2.4 1.2 4.5 3 5.7V17c0 .5.4 1 1 1h6c.6 0 1-.5 1-1v-2.3c1.8-1.3 3-3.4 3-5.7 0-3.9-3.1-7-7-7z"/></svg>Light: '+(torch?'on':'off'); }
+    catch(e){ torch=false; msg('Could not turn on the flashlight from the browser.',true) } };
   $('vf').onclick=ev=>{ if(armEx){ sampleAt(ev); return; } if(source!=='live') return; frozen=!frozen; $('frz').hidden=!frozen; };
 
-  // false-positive filters
+  // filters
   $('filtSeg').querySelectorAll('button').forEach(b=>{ b.setAttribute('aria-pressed',!!FILT[b.dataset.v]);
     b.onclick=()=>{ FILT[b.dataset.v]=!FILT[b.dataset.v]; b.setAttribute('aria-pressed',FILT[b.dataset.v]); store.set('bloodtrail.filters',FILT); refresh(); }; });
   let armEx=false;
-  function vfLabel(){ return source==='live'?'Live camera · tap to freeze':source==='photo'?'Your photo':source==='sample'?'Example, not your photo':'Last frame'; }
-  function setArm(on){ armEx=on; $('exclBtn').textContent=on?'Tap the false spot… (cancel)':'Exclude a color'; $('exclBtn').classList.toggle('on',on);
-    if(on){ if(source==='live'){frozen=true;$('frz').hidden=false} $('vfTag').textContent='Tap a cyan area that is not blood'; } else $('vfTag').textContent=vfLabel(); }
+  function vfLabel(){ return source==='live'?'Live — tap to freeze':source==='photo'?'Your photo':source==='sample'?'Demo scene — start your camera below':'Last frame'; }
+  function setArm(on){ armEx=on; $('exclBtn').textContent=on?'Cancel picking':'Tap to pick'; $('exclBtn').classList.toggle('on',on);
+    if(on){ if(source==='live'){frozen=true;$('frz').hidden=false} $('vfTag').textContent='Tap a cyan area that is NOT blood'; } else $('vfTag').textContent=vfLabel(); }
   $('exclBtn').onclick=()=>setArm(!armEx);
   function renderExcl(){ const el=$('exclList'); el.innerHTML=''; el.hidden=!excl.length;
     excl.forEach((e,i)=>{ const c=document.createElement('span'); c.className='xchip'; const sw=document.createElement('i'); sw.style.background='rgb('+e.r+','+e.g+','+e.b+')';
-      const t=document.createElement('span'); t.textContent='Ignored color '+(i+1); const x=document.createElement('button'); x.textContent='×'; x.setAttribute('aria-label','Stop ignoring color '+(i+1));
+      const t=document.createElement('span'); t.textContent='Color '+(i+1); const x=document.createElement('button'); x.textContent='×'; x.setAttribute('aria-label','Stop ignoring color '+(i+1));
       x.onclick=()=>{ excl.splice(i,1); store.set('bloodtrail.excl',excl); renderExcl(); refresh(); }; c.append(sw,t,x); el.append(c); }); }
   function sampleAt(ev){
     const r=out.getBoundingClientRect(), W=work.width, H=work.height, sc=Math.max(r.width/W,r.height/H);
@@ -556,10 +740,10 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
     if(x<0||y<0||x>=W||y>=H) return;
     const x0=Math.max(0,x-3), y0=Math.max(0,y-3), d=wctx.getImageData(x0,y0,Math.min(7,W-x0),Math.min(7,H-y0)).data;
     let n=0,R=0,G=0,B=0; for(let i=0;i<d.length;i+=4){ if(classify(d[i],d[i+1],d[i+2])){R+=d[i];G+=d[i+1];B+=d[i+2];n++} }
-    if(!n){ msg('Nothing is flagged right there. Tap directly on a cyan or yellow-outlined area.',true); return; }
+    if(!n){ msg('Nothing flagged there. Tap directly on a cyan or yellow-outlined area.',true); return; }
     R=Math.round(R/n);G=Math.round(G/n);B=Math.round(B/n); const c=hsv(R,G,B);
     excl.push({h:c[0],s:c[1],v:c[2],r:R,g:G,b:B}); if(excl.length>8) excl.shift(); store.set('bloodtrail.excl',excl);
-    msg('Color ignored. Only do this for things you know are not blood.'); renderExcl(); setArm(false); analyze(); }
+    msg('Color excluded. Only do this for things you know are NOT blood.'); renderExcl(); setArm(false); analyze(); }
 
   const photoImg=new Image();
   $('photoBtn').onclick=()=>$('photoIn').click();
@@ -568,8 +752,8 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
     const url=URL.createObjectURL(f);
     photoImg.onload=()=>{ const W=Math.min(800,photoImg.naturalWidth), H=Math.round(W*photoImg.naturalHeight/photoImg.naturalWidth);
       work.width=W; work.height=H; wctx.drawImage(photoImg,0,0,W,H); source='photo';
-      $('srcTag').textContent='Photo'; $('srcTag').className='src'; $('vfTag').textContent='Your photo'; msg(''); analyze(); URL.revokeObjectURL(url); };
-    photoImg.onerror=()=>msg('That file could not be opened as a picture. Try a JPG or PNG.',true);
+      $('srcTag').textContent='Photo'; $('srcTag').className='src-badge'; $('vfTag').textContent='Your photo'; msg(''); analyze(); URL.revokeObjectURL(url); };
+    photoImg.onerror=()=>msg('Could not open that file. Try a JPG or PNG photo.',true);
     photoImg.src=url; e.target.value=''; };
 
   function seg(id,cb){ const el=$(id); el.addEventListener('click',e=>{const b=e.target.closest('button'); if(!b) return;
@@ -582,7 +766,7 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
   const KEY='bloodtrail.log.v1'; let log=store.get(KEY,[]);
   function saveLog(){ store.set(KEY,log.slice(0,40)) }
   function renderLog(){ const ol=$('log'); ol.innerHTML=''; $('empty').hidden=log.length>0;
-    log.forEach((s,i)=>{ const li=document.createElement('li'); const im=document.createElement('img'); im.src=s.thumb; im.alt='Snapshot of spot '+(log.length-i);
+    log.forEach((s,i)=>{ const li=document.createElement('li'); const im=document.createElement('img'); im.src=s.thumb; im.alt='Spot '+(log.length-i);
       const d=document.createElement('div'); const t=document.createElement('div'); t.className='t'; t.textContent='Spot '+(log.length-i)+' · '+s.reading;
       const m=document.createElement('div'); m.className='m';
       m.textContent=new Date(s.t).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})+' · '+s.cov.toFixed(2)+'% · '+s.mode+(s.lat!=null?' · '+s.lat.toFixed(5)+', '+s.lon.toFixed(5):' · no GPS');
@@ -627,28 +811,28 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
   $('todayBtn').onclick=()=>{$('dayDate').value=ymd(new Date()); renderDay()};
 
   function locMsg(t){const m=$('locMsg'); m.hidden=!t; m.textContent=t||''}
-  $('gpsLocBtn').onclick=()=>{ locMsg(''); $('gpsLocBtn').textContent='Finding you…';
+  $('gpsLocBtn').onclick=()=>{ locMsg(''); $('gpsLocBtn').textContent='Finding…';
     getPos(12000).then(p=>{ loc={lat:+p.lat.toFixed(5),lon:+p.lon.toFixed(5)}; store.set('bloodtrail.loc',loc); renderDay(); })
-    .catch(e=>locMsg(gpsErr(e))).finally(()=>$('gpsLocBtn').textContent='Use my location'); };
+    .catch(e=>locMsg(gpsErr(e))).finally(()=>$('gpsLocBtn').innerHTML='<svg viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0013 3.06V1h-2v2.06A8.994 8.994 0 003.06 11H1v2h2.06A8.994 8.994 0 0011 20.94V23h2v-2.06A8.994 8.994 0 0020.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>Use GPS'); };
   $('editLocBtn').onclick=()=>{ $('locForm').hidden=false; $('latIn').value=loc.example?'':loc.lat; $('lonIn').value=loc.example?'':loc.lon; $('latIn').focus(); };
   $('cancelLocBtn').onclick=()=>{ $('locForm').hidden=true; locMsg(''); };
   $('saveLocBtn').onclick=()=>{ const la=parseFloat($('latIn').value), lo=parseFloat($('lonIn').value);
-    if(!(la>=-90&&la<=90)||!(lo>=-180&&lo<=180)){ locMsg('Enter latitude between -90 and 90 and longitude between -180 and 180, for example 38.95 and -92.33.'); return; }
+    if(!(la>=-90&&la<=90)||!(lo>=-180&&lo<=180)){ locMsg('Latitude must be -90 to 90, longitude -90 to 180. Example: 38.95, -92.33.'); return; }
     loc={lat:la,lon:lo}; store.set('bloodtrail.loc',loc); $('locForm').hidden=true; locMsg(''); renderDay(); };
 
-  // rut model
+  // rut
   let peakMD=store.get('bloodtrail.peak',{m:10,d:15});
   function peakFor(date){ let p=new Date(date.getFullYear(),peakMD.m,peakMD.d,12); if((date-p)/DAY<-150) p=new Date(date.getFullYear()-1,peakMD.m,peakMD.d,12); return p; }
   const rutIdx=o=>Math.min(1,Math.exp(-((o+3)**2)/(2*64))+0.35*Math.exp(-((o-28)**2)/(2*20)));
   function phase(o){
-    if(o<-45) return ['Off season','Bucks are in bachelor groups or on summer patterns.'];
-    if(o<-30) return ['Pre-rut','Rubs and scrapes ramp up. Bucks still keep loose food-to-bed patterns.'];
-    if(o<-14) return ['Seeking','Bucks cruise and check scrapes, more often in daylight. Good time to rattle and grunt.'];
-    if(o<-3)  return ['Chasing','Bucks chase does hard. Expect movement any time of day; sit all day if you can.'];
-    if(o<=7)  return ['Peak breeding','Bucks tend does and lock down. Sightings can drop, but cruising bucks show up looking for the next doe.'];
-    if(o<=20) return ['Post-rut','Bucks rest and refuel. Hunt food sources, especially in cold weather.'];
-    if(o<=35) return ['Second rut','Unbred does and some doe fawns come into heat. A short bump in chasing.'];
-    return ['Late season','Deer focus on food and cover. Hunt the best late-season food near thick bedding.'];
+    if(o<-45) return ['Off season','Bucks are in bachelor groups or on summer patterns. Focus on food sources and trail cameras.'];
+    if(o<-30) return ['Pre-rut','Rubs and scrapes are showing up. Bucks still follow food-to-bed patterns but are getting restless.'];
+    if(o<-14) return ['Seeking','Bucks are cruising and checking scrapes, more often in daylight. Good time to rattle, grunt, and use scent.'];
+    if(o<-3)  return ['Chasing','Bucks are chasing does hard. Expect movement at any hour. Sit all day if you can.'];
+    if(o<=7)  return ['Peak breeding','Bucks lock down with does. Sightings may drop, but cruising bucks looking for the next doe still move.'];
+    if(o<=20) return ['Post-rut','Bucks are worn out and refueling. Hunt food sources, especially on cold days.'];
+    if(o<=35) return ['Second rut','Unbred does and some fawns come into estrus. A short bump in chasing activity.'];
+    return ['Late season','Deer are focused on food and cover to survive winter. Hunt food sources near thick bedding.'];
   }
   function rutChart(date,peak){
     const svg=$('rutChart'), W=340,H=110,top=10,bot=88,X=o=>14+(o+40)/80*(W-28),Y=v=>bot-v*(bot-top);
@@ -666,24 +850,15 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
   function hm(ms){ const m=Math.round(ms/6e4); return Math.floor(m/60)+' h '+String(m%60).padStart(2,'0')+' m' }
   function renderDay(){
     const date=parseD($('dayDate').value||ymd(new Date()));
-    // location
     $('locText').textContent=loc.lat.toFixed(4)+', '+loc.lon.toFixed(4);
     $('locChip').hidden=!loc.example;
-    $('locNote').textContent=loc.example?'Example spot in central Missouri. Set your own for accurate times.':'Saved on this phone.';
-    // sun
+    $('locNote').textContent=loc.example?'Demo location (central Missouri). Set your own for accurate times.':'Saved on this phone.';
     const st=sunTimes(date,loc.lat,loc.lon), s=st.sun, c=st.civil;
     $('sRise').textContent=s?fmtT(s.rise):'—'; $('sSet').textContent=s?fmtT(s.set):'—';
-    const ls=s&&new Date(s.rise-18e5), le=s&&new Date(s.set.getTime()+18e5);
-    $('lStart').textContent=s?fmtT(ls):'—'; $('lEnd').textContent=s?fmtT(le):'—';
     $('cDawn').textContent=c?fmtT(c.rise):'—'; $('cDusk').textContent=c?fmtT(c.set):'—';
     $('dayLen').textContent=s?hm(s.set-s.rise):'—';
     const mo=moon(date); $('moonTxt').textContent=mo.name.replace(' moon','')+' '+Math.round(mo.illum*100)+'%';
-    let cd=''; const now=new Date();
-    if(s && ymd(now)===ymd(date)){
-      if(now<ls) cd='Legal in '+hm(ls-now); else if(now<le) cd='Legal light left '+hm(le-now); else cd='After legal light';
-    }
-    $('countdown').textContent=cd;
-    // rut
+    $('countdown').textContent='';
     const peak=peakFor(date), off=Math.round((date-peak)/DAY), [ph,desc]=phase(off);
     $('rutPhase').textContent=ph; $('rutDesc').textContent=desc;
     $('rutPct').textContent=Math.round(rutIdx(off)*100)+'%';
@@ -693,7 +868,7 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
   }
 
   // ================= PROPERTY =================
-  let bound=store.get('bloodtrail.bound',[]); // array of rings: [[lat,lon],...]
+  let bound=store.get('bloodtrail.bound',[]);
   let walking=false, draft=[], watchId=null, prevInside=null;
   function propMsg(t){const m=$('propMsg'); m.hidden=!t; m.textContent=t||''}
   function proj(ref){ const k=Math.cos(ref.lat*RAD); return p=>({x:(p.lon-ref.lon)*k*111320, y:(p.lat-ref.lat)*110540}); }
@@ -711,18 +886,18 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
     const st=$('propStatus'), s1=$('propState'), s2=$('propDetail');
     st.className='status'; s1.className='big v-none';
     if(walking){ s1.textContent='Walking the line'; s2.textContent=draft.length+' corner'+(draft.length===1?'':'s')+' dropped'; return; }
-    if(!bound.length){ s1.textContent='No boundary yet'; s2.textContent='Walk your lines or import a boundary file below.'; return; }
+    if(!bound.length){ s1.textContent='No boundary set'; s2.textContent='Walk your property lines or import a boundary file to get started.'; return; }
     if(!lastPos){ s1.textContent='Boundary loaded'; s2.textContent='Turn on GPS tracking to see where you stand.'; return; }
     const ref={lat:bound[0][0][0],lon:bound[0][0][1]}, P=proj(ref);
     const ins=inside(lastPos,bound,P), dyd=Math.round(edgeDist(lastPos,bound,P)*YD), acc=Math.round((lastPos.acc||0)*YD);
-    if(ins && dyd>40){ st.classList.add('in'); s1.className='big v-strong'; s1.textContent='Inside your property'; s2.textContent=dyd+' yd to the nearest line · GPS ±'+acc+' yd'; }
-    else if(ins){ st.classList.add('near'); s1.className='big v-maybe'; s1.textContent='Near the line'; s2.textContent='Inside, '+dyd+' yd from the line · GPS ±'+acc+' yd'; }
+    if(ins && dyd>40){ st.classList.add('in'); s1.className='big v-strong'; s1.textContent='Inside your property'; s2.textContent=dyd+' yd to nearest line · GPS ±'+acc+' yd'; }
+    else if(ins){ st.classList.add('near'); s1.className='big v-maybe'; s1.textContent='Near the line'; s2.textContent='Inside, '+dyd+' yd from line · GPS ±'+acc+' yd'; }
     else { st.classList.add('out'); s1.className='big v-bad'; s1.textContent='Outside your property'; s2.textContent=dyd+' yd past the line · GPS ±'+acc+' yd. Get permission before going further.'; }
     if(prevInside===true && !ins && navigator.vibrate){ try{navigator.vibrate([250,120,250,120,250])}catch(e){} }
     prevInside=ins;
   }
 
-  // ----- live map: Leaflet with free tiles; falls back to the plain canvas map if Leaflet can't load -----
+  // live map
   const BASES={
     sat:{url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',o:{maxNativeZoom:19,maxZoom:20,attribution:'Imagery © Esri, Maxar, Earthstar Geographics'}},
     topo:{url:'https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}',o:{maxNativeZoom:16,maxZoom:20,attribution:'USGS The National Map'}},
@@ -748,7 +923,7 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
   function setBase(k){ if(!lmap) return; baseKey=k; store.set('bloodtrail.base',k); if(base){lmap.removeLayer(base); base=null} tileOk=0; tileBad=0; mapNote('');
     const b=BASES[k]; if(!b) return; base=L.tileLayer(b.url,b.o).addTo(lmap);
     base.on('tileload',()=>{tileOk++; mapNote('')});
-    base.on('tileerror',()=>{tileBad++; if(!tileOk&&tileBad>=4) mapNote('Map imagery is not loading. It needs cell signal, and it only loads from your GitHub link, not inside the Claude app. Your lines, trail and position still show.')}); }
+    base.on('tileerror',()=>{tileBad++; if(!tileOk&&tileBad>=4) mapNote('Map imagery not loading — needs cell signal. Open from your GitHub link, not inside Claude. Your lines and position still show.')}); }
   seg('layerSeg',v=>setBase(v));
   function drawLeaflet(){
     lgroup.clearLayers();
@@ -781,20 +956,16 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
     const span=Math.max(x1-x0,y1-y0,60), pad=28, sc=(Math.min(W,H)-pad*2)/span, cx=(x0+x1)/2, cy=(y0+y1)/2;
     const S=p=>{const q=P(p); return [W/2+(q.x-cx)*sc, H/2-(q.y-cy)*sc]};
     const C={blaze:css('--blaze'),hit:css('--hit'),fg:css('--fg'),muted:css('--muted'),line:css('--line'),warn:css('--warn')};
-    // boundary
     bound.forEach(r=>{ g.beginPath(); r.forEach(([la,lo],i)=>{const [x,y]=S({lat:la,lon:lo}); i?g.lineTo(x,y):g.moveTo(x,y)}); g.closePath();
       g.globalAlpha=.12; g.fillStyle=C.blaze; g.fill(); g.globalAlpha=1; g.lineWidth=2.5; g.strokeStyle=C.blaze; g.stroke(); });
     if(draft.length){ g.beginPath(); draft.forEach(([la,lo],i)=>{const [x,y]=S({lat:la,lon:lo}); i?g.lineTo(x,y):g.moveTo(x,y)}); g.setLineDash([6,5]); g.lineWidth=2; g.strokeStyle=C.warn; g.stroke(); g.setLineDash([]);
       draft.forEach(([la,lo])=>{const [x,y]=S({lat:la,lon:lo}); g.fillStyle=C.warn; g.fillRect(x-4,y-4,8,8)}); }
-    // trail
     if(spots.length>1){ g.beginPath(); spots.forEach((s,i)=>{const [x,y]=S(s); i?g.lineTo(x,y):g.moveTo(x,y)}); g.setLineDash([4,4]); g.lineWidth=2; g.strokeStyle=C.hit; g.stroke(); g.setLineDash([]); }
     g.font='600 11px '+css('--mono');
     spots.forEach((s,i)=>{const [x,y]=S(s); g.beginPath(); g.arc(x,y,5,0,7); g.fillStyle=C.hit; g.fill(); g.fillStyle=C.fg; g.fillText(String(i+1),x+7,y-6)});
-    // you
     if(lastPos){ const [x,y]=S(lastPos); const r=Math.max(6,(lastPos.acc||0)*sc);
       g.beginPath(); g.arc(x,y,r,0,7); g.globalAlpha=.15; g.fillStyle=C.fg; g.fill(); g.globalAlpha=1;
       g.beginPath(); g.arc(x,y,7,0,7); g.fillStyle=C.fg; g.fill(); g.lineWidth=3; g.strokeStyle='#000'; g.stroke(); }
-    // north + scale
     g.fillStyle=C.muted; g.font='700 13px '+css('--mono'); g.textAlign='center'; g.fillText('N',W-18,22);
     g.beginPath(); g.moveTo(W-18,26); g.lineTo(W-23,38); g.lineTo(W-13,38); g.closePath(); g.fill();
     const opts=[10,25,50,100,200,250,500,1000,2000,5000]; let yd=opts[0]; opts.forEach(o=>{ if(o/YD*sc<=W*0.3) yd=o });
@@ -814,13 +985,13 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
   window.addEventListener('resize',()=>{ if(!$('tab-property').hidden) drawMap(); });
 
   $('trackBtn').onclick=()=>{
-    if(watchId!==null){ navigator.geolocation.clearWatch(watchId); watchId=null; $('trackBtn').textContent='Track my GPS: off'; $('trackBtn').classList.remove('on'); return; }
+    if(watchId!==null){ navigator.geolocation.clearWatch(watchId); watchId=null; $('trackBtn').innerHTML='<svg viewBox="0 0 24 24" style="width:18px;height:18px"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0013 3.06V1h-2v2.06A8.994 8.994 0 003.06 11H1v2h2.06A8.994 8.994 0 0011 20.94V23h2v-2.06A8.994 8.994 0 0020.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>Track my GPS: off'; $('trackBtn').classList.remove('on'); return; }
     if(!navigator.geolocation){ propMsg(gpsErr({code:9})); return; }
-    propMsg(''); $('trackBtn').textContent='Track my GPS: starting…';
+    propMsg(''); $('trackBtn').innerHTML='<svg viewBox="0 0 24 24" style="width:18px;height:18px"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0013 3.06V1h-2v2.06A8.994 8.994 0 003.06 11H1v2h2.06A8.994 8.994 0 0011 20.94V23h2v-2.06A8.994 8.994 0 0020.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>Track my GPS: starting…';
     try{
       watchId=navigator.geolocation.watchPosition(p=>{ lastPos={lat:p.coords.latitude,lon:p.coords.longitude,acc:p.coords.accuracy,t:Date.now()};
-        $('trackBtn').textContent='Track my GPS: on'; $('trackBtn').classList.add('on'); if(!$('tab-property').hidden) renderProperty(); },
-        e=>{ propMsg(gpsErr(e)); if(e.code===1){ navigator.geolocation.clearWatch(watchId); watchId=null; $('trackBtn').textContent='Track my GPS: off'; $('trackBtn').classList.remove('on'); } },
+        $('trackBtn').innerHTML='<svg viewBox="0 0 24 24" style="width:18px;height:18px"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0013 3.06V1h-2v2.06A8.994 8.994 0 003.06 11H1v2h2.06A8.994 8.994 0 0011 20.94V23h2v-2.06A8.994 8.994 0 0020.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>Track my GPS: on'; $('trackBtn').classList.add('on'); if(!$('tab-property').hidden) renderProperty(); },
+        e=>{ propMsg(gpsErr(e)); if(e.code===1){ navigator.geolocation.clearWatch(watchId); watchId=null; $('trackBtn').innerHTML='<svg viewBox="0 0 24 24" style="width:18px;height:18px"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0013 3.06V1h-2v2.06A8.994 8.994 0 003.06 11H1v2h2.06A8.994 8.994 0 0011 20.94V23h2v-2.06A8.994 8.994 0 0020.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>Track my GPS: off'; $('trackBtn').classList.remove('on'); } },
         {enableHighAccuracy:true,maximumAge:3000,timeout:20000});
     }catch(e){ propMsg(gpsErr({code:9})); }
   };
@@ -829,7 +1000,7 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
     $('walkDone').disabled=draft.length<3; $('walkUndo').disabled=!draft.length; renderProperty(); }
   $('walkStart').onclick=()=>{ walking=true; draft=[]; propMsg(''); walkUI(); };
   $('walkDrop').onclick=()=>{ $('walkDrop').textContent='Getting GPS…'; $('walkDrop').disabled=true;
-    getPos(15000).then(p=>{ draft.push([p.lat,p.lon]); propMsg(p.acc>15?'GPS accuracy is ±'+Math.round(p.acc*YD)+' yd. Wait a moment in the open for a tighter fix if you can.':''); walkUI(); })
+    getPos(15000).then(p=>{ draft.push([p.lat,p.lon]); propMsg(p.acc>15?'GPS accuracy is ±'+Math.round(p.acc*YD)+' yd. Wait in the open for a tighter fix.':''); walkUI(); })
     .catch(e=>propMsg(gpsErr(e))).finally(()=>{ $('walkDrop').textContent='Drop corner here'; $('walkDrop').disabled=false; }); };
   $('walkUndo').onclick=()=>{ draft.pop(); walkUI(); };
   $('walkCancel').onclick=()=>{ walking=false; draft=[]; walkUI(); };
@@ -854,12 +1025,12 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
   }
   $('importBtn').onclick=()=>$('importIn').click();
   $('importIn').onchange=e=>{ const f=e.target.files&&e.target.files[0]; e.target.value=''; if(!f) return;
-    if(/\.kmz$/i.test(f.name)){ propMsg('KMZ files are zipped. In Google Earth, save as KML instead, then import that.'); return; }
+    if(/\.kmz$/i.test(f.name)){ propMsg('KMZ files are zipped. In Google Earth, export as KML instead.'); return; }
     const rd=new FileReader(); rd.onload=()=>{ try{ const r=parseBoundary(String(rd.result),f.name);
-        if(!r.length){ propMsg('No boundary shape found in that file. It needs a polygon, path or track with at least 3 points.'); return; }
+        if(!r.length){ propMsg('No boundary found in that file. It needs a polygon, path or track with at least 3 points.'); return; }
         bound=r; store.set('bloodtrail.bound',bound); prevInside=null; fitPending=true; propMsg(''); renderProperty();
-      }catch(err){ propMsg('That file could not be read. Use a KML, GPX or GeoJSON file.'); } };
-    rd.onerror=()=>propMsg('That file could not be opened.'); rd.readAsText(f); };
+      }catch(err){ propMsg('Could not read that file. Use a KML, GPX or GeoJSON file.'); } };
+    rd.onerror=()=>propMsg('Could not open that file.'); rd.readAsText(f); };
   $('clearBound').onclick=()=>{ if(bound.length) $('confirmBound').hidden=false; };
   $('noBound').onclick=()=>$('confirmBound').hidden=true;
   $('yesBound').onclick=()=>{ fitPending=true; bound=[]; store.set('bloodtrail.bound',bound); prevInside=null; $('confirmBound').hidden=true; renderProperty(); };
@@ -867,5 +1038,13 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
   // ================= START =================
   sampleScene(); analyze(); renderLog(); renderExcl(); renderDay();
   showTab(location.hash.slice(1));
+
+  // Register service worker for offline & PWA
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('service-worker.js').catch(()=>{});
+  }
 })();
 </script>
+
+</body>
+</html>
